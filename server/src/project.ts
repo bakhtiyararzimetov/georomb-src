@@ -27,7 +27,8 @@ const fail = (msg: string): never => { throw new ProjectError(msg); };
 function text(v: unknown, field: string): string | undefined {
   if(v === undefined || v === null) return undefined;
   if(typeof v !== 'string') return fail(`Поле ${field} должно быть строкой`);
-  return v.slice(0, MAX_TEXT);
+  // по кодовым точкам, чтобы не разрезать эмодзи; одиночные суррогаты → U+FFFD (иначе encodeURIComponent бросит)
+  return Array.from(v.toWellFormed()).slice(0, MAX_TEXT).join('');
 }
 
 function num(v: unknown): number {

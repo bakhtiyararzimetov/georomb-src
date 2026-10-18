@@ -3,13 +3,17 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { Project } from '../../app/src/types.ts';
 import { ProjectError, parseProject } from './project.ts';
-import { drawWindowAndMakePdf } from './pdf.ts';
+import { renderPdfInWorker } from './worker.ts';
 import { projectLayoutJson } from './layoutJson.ts';
 
 export const API_PATH = '/api/generate-window-pdf';
 export const MAX_BODY = 1024 * 1024;   // 1 МБ — проект на 50 окон занимает десятки КБ
 
-export interface AppDeps { makePdf?: (project: Project) => Promise<Uint8Array>; }
+export interface AppDeps {
+  makePdf?: (project: Project) => Promise<Uint8Array>;
+  maxConcurrent?: number;   // одновременных отрисовок PDF (CPU), по умолчанию 2
+  maxQueue?: number;        // ждущих в очереди; больше — 503 server_busy, по умолчанию 8
+}
 
 class HttpError extends Error {
   readonly status: number; readonly code: string;
@@ -46,7 +50,25 @@ const safeFileName = (s: string) => s.replace(/[\\/:*?"<>|\x00-\x1f\x7f]/g, '_')
 const contentDisposition = (name: string) =>
   `attachment; filename="georomb.pdf"; filename*=UTF-8''${encodeURIComponent(safeFileName(name) + '.pdf')}`;
 
-async function handleGenerate(req: IncomingMessage, res: ServerResponse, url: URL, makePdf: NonNullable<AppDeps['makePdf']>): Promise<void> {
+/** Ограничение одновременных отрисовок: страница рисуется ~0.2–0.5 с CPU, без лимита параллельные запросы складываются. */
+function limiter(maxConcurrent: number, maxQueue: number) {
+  let active = 0;
+  const queue: (() => void)[] = [];
+  return async <T>(job: () => Promise<T>): Promise<T> => {
+    if(active >= maxConcurrent){
+      if(queue.length >= maxQueue) throw new HttpError(503, 'server_busy', 'Сервер занят другими PDF, повторите запрос через несколько секунд');
+      await new Promise<void>(r => queue.push(r));
+    }else active++;
+    try{ return await job(); }
+    finally{
+      const next = queue.shift();
+      if(next) next(); else active--;
+    }
+  };
+}
+type Limit = ReturnType<typeof limiter>;
+
+async function handleGenerate(req: IncomingMessage, res: ServerResponse, url: URL, makePdf: NonNullable<AppDeps['makePdf']>, limit: Limit): Promise<void> {
   const format = url.searchParams.get('format') || 'pdf';
   if(format !== 'pdf' && format !== 'json') throw new HttpError(400, 'invalid_format', 'Параметр format: pdf (по умолчанию) или json');
   const raw = await readBody(req);
@@ -61,25 +83,30 @@ async function handleGenerate(req: IncomingMessage, res: ServerResponse, url: UR
   }
   if(format === 'json'){ sendJson(res, 200, projectLayoutJson(project)); return; }
 
-  let pdf: Uint8Array;
-  try{ pdf = await makePdf(project); }
-  catch(err){
-    console.error('PDF generation failed:', err);
-    throw new HttpError(500, 'pdf_generation_failed', 'Не удалось создать PDF: ' + ((err as Error)?.message || String(err)));
-  }
+  const disposition = contentDisposition(project.name);   // до отрисовки: ошибка здесь не должна стоить CPU
+  const pdf = await limit(async () => {
+    try{ return await makePdf(project); }
+    catch(err){
+      console.error('PDF generation failed:', err);
+      throw new HttpError(500, 'pdf_generation_failed', 'Не удалось создать PDF: ' + ((err as Error)?.message || String(err)));
+    }
+  });
   res.writeHead(200, {
     'Content-Type': 'application/pdf',
-    'Content-Disposition': contentDisposition(project.name),
+    'Content-Disposition': disposition,
     'Content-Length': pdf.length
   });
   res.end(pdf);
 }
 
 export function createApp(deps: AppDeps = {}): Server {
-  const makePdf = deps.makePdf || drawWindowAndMakePdf;
+  const makePdf = deps.makePdf || renderPdfInWorker;
+  const limit = limiter(deps.maxConcurrent ?? 2, deps.maxQueue ?? 8);
   return createServer((req, res) => {
-    const url = new URL(req.url || '/', 'http://localhost');
     const route = async (): Promise<void> => {
+      let url: URL;
+      try{ url = new URL(req.url || '/', 'http://localhost'); }
+      catch{ throw new HttpError(400, 'bad_request', 'Некорректный адрес запроса'); }
       if(url.pathname === '/health' && req.method === 'GET'){ sendJson(res, 200, { ok: true }); return; }
       if(url.pathname !== API_PATH) throw new HttpError(404, 'not_found', `Нет такого адреса. API: POST ${API_PATH}`);
       if(req.method !== 'POST'){
@@ -87,7 +114,7 @@ export function createApp(deps: AppDeps = {}): Server {
         sendError(res, new HttpError(405, 'method_not_allowed', `Нужен метод POST, а пришёл ${req.method}`), { Allow: 'POST' });
         return;
       }
-      await handleGenerate(req, res, url, makePdf);
+      await handleGenerate(req, res, url, makePdf, limit);
     };
     route().catch((err: unknown) => {
       if(!(err instanceof HttpError)){

@@ -104,3 +104,40 @@ test('GET /health — для проверки, что сервер жив', asyn
   assert.equal(res.status, 200);
   assert.deepEqual(await res.json(), { ok: true });
 });
+
+test('кривой адрес в запросе не роняет сервер (400, сервер жив)', async () => {
+  const { connect } = await import('node:net');
+  const { port } = server.address() as AddressInfo;
+  const reply = await new Promise<string>((resolve, reject) => {
+    const s = connect(port, '127.0.0.1', () => s.write('GET http://[bad HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n'));
+    let data = '';
+    s.on('data', c => { data += c; });
+    s.on('end', () => resolve(data));
+    s.on('error', reject);
+  });
+  assert.match(reply, /^HTTP\/1\.1 400/);
+  const res = await fetch(base + '/health');
+  assert.equal(res.status, 200);
+});
+
+test('эмодзи на границе 200 символов и одиночный суррогат в имени — всё равно 200', async () => {
+  for(const name of ['a'.repeat(199) + '😀', 'x\ud83dy']){
+    const res = await post(base, JSON.stringify({ name, elements: [{ width: 1000, height: 1000 }] }));
+    assert.equal(res.status, 200, name);
+    await res.arrayBuffer();
+  }
+});
+
+test('503 server_busy: очередь отрисовки переполнена', async () => {
+  const slowPdf = () => new Promise<Uint8Array>(r => setTimeout(() => r(new TextEncoder().encode('%PDF-1.7 test')), 300));
+  const busy = createApp({ makePdf: slowPdf, maxConcurrent: 1, maxQueue: 1 });
+  const b = await listen(busy);
+  try{
+    const first = post(b, exampleText), queued = post(b, exampleText);
+    await new Promise(r => setTimeout(r, 100));
+    await expectError(await post(b, exampleText), 503, 'server_busy');
+    assert.deepEqual([(await first).status, (await queued).status], [200, 200], 'первый рисуется, второй дождался очереди');
+  }finally{
+    await close(busy);
+  }
+});

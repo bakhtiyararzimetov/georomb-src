@@ -114,13 +114,16 @@ open("window.pdf", "wb").write(r.content)
 | 400 | `invalid_format` | `?format=` не `pdf` и не `json` |
 | 404 | `not_found` | другой адрес |
 | 405 | `method_not_allowed` | не POST |
+| 400 | `bad_request` | некорректный адрес запроса |
 | 413 | `payload_too_large` | тело больше 1 МБ |
+| 503 | `server_busy` | сервер уже рисует много PDF — повторите через несколько секунд |
 | 500 | `pdf_generation_failed` | сбой при рисовании PDF; подробности в логе сервера |
 
 ## Устройство
 
 - [src/app.ts](src/app.ts) — HTTP: маршруты, чтение тела, коды ошибок.
 - [src/project.ts](src/project.ts) — проверка JSON → `Project` из `app/src/types.ts`.
+- [src/worker.ts](src/worker.ts) — отрисовка в отдельном потоке (не больше 2 одновременно, очередь 8, лимит 60 с), чтобы сервер отвечал, пока рисуется PDF.
 - [src/pdf.ts](src/pdf.ts) — `drawWindowAndMakePdf(project)`: проект → байты PDF. Если понадобится другая отрисовка, заменяется только эта функция.
 - [src/page.ts](src/page.ts) — страница элемента в SVG. Чертёж берётся из `app/src/render`, раскладка из `app/src/model`.
 - [src/layoutJson.ts](src/layoutJson.ts) — ответ для `?format=json`.
