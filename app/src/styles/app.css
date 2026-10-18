@@ -1,0 +1,1444 @@
+  :root{
+    --bg:#ffffff;
+    --ink:#14213d;
+    --ink-soft:#566276;
+    --line:#e2e8f5;
+    --card:#eef3fc;
+    --header:#1a56db;
+    --header-dark:#123fa3;
+    --header-ink:#ffffff;
+    --accent:#ffc72c;
+    --accent-ink:#14213d;
+
+    /* доп. поверхности и статусные цвета (используются вне «синей» палитры выше) */
+    --surface-2:#eceff3;       /* фон холста списка/просмотра элемента */
+    --border-strong:#c9d0da;   /* контур карточек-миниатюр и схемы элемента */
+    --success:#1f8a4c;
+    --success-bg:#e5f6ec;
+    --danger:#d64545;
+    --chip-warn-bg:#FAEEDA;
+    --chip-warn-ink:#633806;
+    --chip-ok-bg:#EAF3DE;
+    --chip-ok-ink:#27500A;
+    --chip-mid-bg:#DBE7FD;
+    --chip-mid-ink:#123FA3;
+    --zebra:#E3F1F9;
+    --switch-track:#c9d1e0;
+
+    /* Типографическая шкала: единый набор размеров вместо случайных «на глаз» значений
+       (в т.ч. дробных 11.5/12.5/13.5/14.5px). Схема технического чертежа элемента (--dim-*)
+       в эту шкалу не входит — там размер меняется плавно между рамкой/импостом. */
+    --fs-2xs:11px;
+    --fs-xs:12px;
+    --fs-sm:13px;
+    --fs-base:14px;
+    --fs-md:15px;
+    --fs-lg:16px;
+    --fs-title:17px;
+    --fs-xl:20px;
+    --fs-2xl:24px;
+    --fs-display:32px;
+
+    /* Шкала скруглений: вместо 7 «плавающих» значений (6/8/10/12/13/14/16) — 3 ступени + «таблетка» */
+    --radius-sm:8px;
+    --radius-md:12px;
+    --radius-lg:16px;
+    --radius-pill:999px;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    min-height:100vh;
+    min-height:100dvh;
+    display:flex;
+    justify-content:center;
+  }
+
+  .phone{
+    width:100%;
+    max-width:420px;
+    min-height:100vh;
+    min-height:100dvh;
+    background:var(--bg);
+    display:flex;
+    flex-direction:column;
+    position:relative;
+    overflow-x:hidden;
+  }
+
+  /* Планшеты / фолдаблы / широкие окна / телефон в landscape: колонка остаётся той же ширины
+     (раскладка на 2 колонки — отдельная задача), но перестаёт быть «незаметной белой полоской
+     на белом фоне» — фон снаружи и боковые границы явно показывают, что это рамка приложения. */
+  @media (min-width:700px){
+    body{ background:var(--surface-2); }
+    .phone, nav.bottom, .screen, .sheet{
+      border-left:1px solid var(--line);
+      border-right:1px solid var(--line);
+    }
+    .phone{ box-shadow:0 0 40px rgba(20,33,61,0.10); }
+  }
+
+  /* Header */
+  header{
+    background:var(--header);
+    color:var(--header-ink);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:calc(14px + env(safe-area-inset-top, 0px)) 14px 14px;
+    min-height:48px;                 /* та же высота контента, есть в шапке .icon-btn («назад», 48px) или только текст —
+                                         иначе шапки без кнопки назад (например «Мои проекты») были заметно ниже остальных */
+    box-sizing:content-box;
+    flex-shrink:0;
+  }
+  .icon-btn{
+    background:none;
+    border:none;
+    color:var(--header-ink);
+    cursor:pointer;
+    padding:8px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:var(--radius-sm);
+    min-width:48px;
+    min-height:48px;
+    box-sizing:border-box;
+  }
+  .icon-btn:hover{ background:rgba(255,255,255,0.16); }
+  .accent-btn{
+    position:fixed;
+    right:calc(max(0px, (100vw - 420px) / 2) + 16px);   /* правый край колонки (420px) минус 16px — на любой ширине, не прилипает к краю */
+    bottom:calc(78px + env(safe-area-inset-bottom, 0px));
+    width:56px;
+    height:56px;
+    border-radius:50%;
+    background:var(--accent);
+    color:var(--accent-ink);
+    border:none;
+    box-shadow:0 4px 14px rgba(0,0,0,0.28);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    z-index:14;                      /* НАМЕРЕННО: тот же уровень, что nav.bottom (14). Кнопка видна только на главном списке проектов —
+                                         используется только там (см. единственное .accent-btn ниже). Если добавите её на другой экран,
+                                         она окажется под этим .screen (z-index:15) и будет невидима — либо поднимайте z-index здесь до 16+,
+                                         либо рендерьте FAB внутри самого .screen, а не как общий fixed-элемент. */
+    cursor:pointer;
+  }
+  .accent-btn:hover{ background:var(--accent); filter:brightness(1.06); }
+  /* «+ Новый проект» относится только к списку проектов: на вкладках Раскрой/Склад/Каталог/Настройки (z-index 13, ниже кнопки) прячем */
+  body:has(#settingsScreen.open, #cuttingScreen.open, #warehouseScreen.open, #catalogScreen.open) .accent-btn{ display:none; }
+  .icon-btn:focus-visible{ outline:2px solid var(--header-ink); outline-offset:2px; }
+  /* неактивные кнопки (история элемента) — затемнены */
+  .icon-btn:disabled{ opacity:0.35; cursor:default; }
+  .icon-btn:disabled:hover{ background:none; }
+  header h1{
+    font-size:var(--fs-title);
+    font-weight:600;
+    letter-spacing:0.2px;
+    margin:0;
+  }
+  .header-actions{ display:flex; align-items:center; gap:2px; }
+  /* пустой правый угол шапки экранов без действий — ширина = .icon-btn (48px), а не хардкод 38px:
+     иначе заголовок H1 в шапке визуально смещён относительно кнопки «Назад» слева */
+  .header-actions.spacer{ width:48px; }
+
+  /* Search */
+  .search-wrap{
+    padding:12px 14px 8px 14px;
+    background:var(--bg);
+  }
+  .search-box{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:var(--radius-md);
+    padding:9px 12px;
+  }
+  .search-box svg{ flex-shrink:0; opacity:0.55; }
+  .search-box input{
+    border:none;
+    background:none;
+    outline:none;
+    color:var(--ink);
+    font-size:var(--fs-md);
+    width:100%;
+  }
+  .search-box input::placeholder{ color:var(--ink-soft); }
+  .clear-btn{
+    position:relative;               /* для увеличенной зоны клика через ::after, без изменения видимого размера иконки */
+    background:none;
+    border:none;
+    cursor:pointer;
+    color:var(--ink-soft);
+    display:flex;
+    align-items:center;
+    padding:2px;
+    visibility:hidden;
+  }
+  .clear-btn::after{                 /* невидимая зона клика ~48×48, поверх и вокруг маленькой видимой иконки */
+    content:"";
+    position:absolute;
+    inset:50% auto auto 50%;
+    width:48px; height:48px;
+    transform:translate(-50%,-50%);
+  }
+  .clear-btn.show{ visibility:visible; }
+
+  /* List */
+  main{
+    flex:1;
+    overflow-y:auto;
+    padding:4px 14px 90px 14px;
+  }
+  .empty{
+    text-align:center;
+    color:var(--ink-soft);
+    margin-top:60px;
+    font-size:var(--fs-base);
+    line-height:1.6;
+  }
+  .project-card{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:var(--radius-md);
+    padding:14px;
+    margin-bottom:10px;
+    cursor:pointer;
+    transition:border-color .15s ease;
+  }
+  .project-card:hover{ border-color:var(--ink-soft); }
+  .project-card:active{ transform:scale(0.99); }
+  .avatar{
+    width:42px;
+    height:42px;
+    border-radius:var(--radius-md);
+    background:var(--header);
+    color:#ffffff;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-weight:600;
+    font-size:var(--fs-md);
+    flex-shrink:0;
+  }
+  .project-info{ flex:1; min-width:0; }
+  .project-name{
+    font-size:var(--fs-md);
+    font-weight:600;
+    color:var(--ink);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .project-meta{
+    font-size:var(--fs-xs);
+    color:var(--ink-soft);
+    margin-top:2px;
+  }
+
+  /* Bottom nav */
+  nav.bottom{
+    position:fixed;
+    bottom:0; left:50%;
+    transform:translateX(-50%);
+    width:100%; max-width:420px;
+    z-index:14;                      /* выше вкладки «Настройки» (13), ниже остальных экранов (15) */
+    display:flex;
+    background:var(--bg);
+    border-top:1px solid var(--line);
+    padding:6px 0 calc(10px + env(safe-area-inset-bottom, 0px)) 0;
+  }
+  .nav-item{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:3px;
+    background:none;
+    border:none;
+    color:var(--ink-soft);
+    font-size:var(--fs-2xs);
+    cursor:pointer;
+    padding:6px 0 0 0;
+  }
+  .nav-item.active{ color:var(--header); }
+  .nav-item svg{ opacity:0.85; width:22px; height:22px; transition:transform .15s ease; }
+  .nav-item.active svg{ opacity:1; transform:scale(1.18); }   /* выбранная вкладка — значок чуть крупнее */
+
+  /* New project sheet */
+  .sheet-backdrop{
+    position:fixed; inset:0;
+    background:rgba(0,0,0,0.4);
+    display:none;
+    align-items:flex-end;
+    justify-content:center;
+    z-index:20;
+  }
+  .sheet-backdrop.open{ display:flex; }
+  .sheet{
+    width:100%;
+    max-width:420px;
+    background:var(--bg);
+    border-radius:var(--radius-lg) var(--radius-lg) 0 0;
+    padding:20px 18px calc(24px + env(safe-area-inset-bottom, 0px)) 18px;   /* лист прижат к самому низу экрана — без этого
+                                                                                кнопки попадают в зону домашнего индикатора iPhone */
+  }
+  .sheet h2{ margin:0 0 14px 0; font-size:var(--fs-lg); }
+  .sheet input{
+    width:100%;
+    padding:11px 12px;
+    border-radius:var(--radius-md);
+    border:1px solid var(--line);
+    background:var(--card);
+    color:var(--ink);
+    font-size:var(--fs-md);
+    outline:none;
+    margin-bottom:14px;
+  }
+  .sheet-actions{ display:flex; gap:10px; }
+
+  /* Мини-клавиатура только с цифрами в окне ввода размера (системная клавиатура не нужна — поле readonly) */
+  #dimInput{ text-align:center; font-size:var(--fs-xl); font-weight:600; letter-spacing:1px; caret-color:transparent; }
+  .num-pad{ display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-bottom:14px; }
+  .num-pad button{
+    height:44px; border-radius:var(--radius-md);
+    border:1px solid var(--line); background:var(--card); color:var(--ink);
+    font-size:var(--fs-xl); font-weight:600; font-family:inherit; cursor:pointer;
+    touch-action:manipulation; -webkit-tap-highlight-color:transparent;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .num-pad button:active{ background:var(--line); }
+  .num-pad button.aux{ color:var(--ink-soft); font-size:var(--fs-title); }
+
+  /* "Редактировать элемент" — компактный диалог со списком полей, как в старом проекте */
+  .edit-elem-title{
+    color:var(--header);
+    border-bottom:2px solid var(--header);
+    padding-bottom:10px;
+    margin:0 0 14px 0;
+    font-size:var(--fs-title);
+  }
+  .edit-elem-row{ margin-bottom:16px; }
+  .edit-elem-row label{ display:block; font-size:var(--fs-xs); color:var(--ink-soft); margin-bottom:5px; }
+  .edit-elem-row input[type="text"]{
+    width:100%;
+    border:none;
+    border-bottom:1px solid var(--line);
+    background:none;
+    font-size:var(--fs-lg);
+    color:var(--ink);
+    padding:4px 0 6px 0;
+    outline:none;
+    font-family:inherit;
+  }
+  .edit-elem-row input[type="text"]:focus{ border-bottom-color:var(--header); }
+  .edit-elem-row input[type="text"]:disabled{ color:var(--ink-soft); }
+  .edit-elem-row .radio-group{ margin-top:4px; }
+  .edit-elem-row .color-row{ display:flex; align-items:center; gap:8px; border-bottom:1px solid var(--line); }
+  .edit-elem-row select{
+    flex:1;
+    width:100%;
+    border:none;
+    background:none;
+    font-size:var(--fs-lg);
+    color:var(--ink);
+    padding:4px 0 6px 0;
+    outline:none;
+    font-family:inherit;
+    -webkit-appearance:none;
+    appearance:none;
+  }
+  /* выбор цвета — свой список в стиле проекта вместо системного выпадающего */
+  .color-trigger{ cursor:pointer; }
+  .color-trigger select{ pointer-events:none; }
+  .edit-elem-row .color-row .chevron{ margin-left:auto; }
+  .color-pick-list{ max-height:55vh; overflow-y:auto; margin:0 -6px 14px; }
+  .color-opt{
+    display:flex; align-items:center; gap:12px; width:100%;
+    background:none; border:none; border-radius:var(--radius-md);
+    padding:11px 10px; margin-bottom:2px;
+    font-family:inherit; font-size:var(--fs-md); color:var(--ink); text-align:left; cursor:pointer;
+  }
+  .color-opt:hover{ background:var(--card); }
+  .color-opt.selected{ background:var(--card); font-weight:600; }
+  .color-opt .color-swatch{ width:26px; height:26px; }
+  .color-opt .check{ margin-left:auto; color:var(--header); font-weight:700; opacity:0; }
+  .color-opt.selected .check{ opacity:1; }
+  #colorPickBackdrop{ z-index:40; }
+  .btn{
+    flex:1;
+    min-height:48px;                 /* было ~39px (padding 11px + текст 14px) — меньше 48dp; кнопка используется
+                                         на ~20 экранах (шторки/диалоги), поэтому исправлено в одном месте */
+    padding:11px 0;
+    border-radius:var(--radius-md);
+    border:1px solid var(--line);
+    background:var(--card);
+    color:var(--ink);
+    font-size:var(--fs-base);
+    font-weight:600;
+    cursor:pointer;
+    box-sizing:border-box;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .btn.primary{ background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
+  .btn:disabled{ opacity:0.5; cursor:default; }
+
+  /* Меню "Ещё" (⋮), как в старом проекте: PopupMenu */
+  .popup-menu-backdrop{
+    position:absolute; inset:0;
+    z-index:30;
+    display:none;
+  }
+  .popup-menu-backdrop.open{ display:block; }
+  .popup-menu{
+    position:absolute;
+    top:54px;
+    right:8px;
+    min-width:220px;
+    background:var(--bg);
+    border-radius:var(--radius-md);
+    box-shadow:0 6px 20px rgba(20,33,61,0.28);
+    overflow:hidden;
+    padding:6px 0;
+  }
+  .popup-menu-item{
+    display:block;
+    width:100%;
+    text-align:left;
+    background:none;
+    border:none;
+    padding:13px 18px;
+    font-size:var(--fs-base);
+    color:var(--ink);
+    cursor:pointer;
+  }
+  .popup-menu-item:hover{ background:var(--card); }
+  .popup-menu-item.danger{ color:var(--danger); }
+
+  /* Резюме проекта / элемента — тот же нижний лист, что и остальные экраны приложения */
+  .summary-rows{ margin-bottom:14px; }
+  .summary-row{
+    padding:10px 0;
+    border-bottom:1px solid var(--line);
+  }
+  .summary-row:last-child{ border-bottom:none; }
+  .summary-row .label{ font-size:var(--fs-base); color:var(--ink); font-weight:600; }
+  .summary-row .value{ font-size:var(--fs-sm); color:var(--ink-soft); margin-top:2px; }
+
+  /* Theme options */
+
+  /* Full-screen sub-screen (Settings, etc.) */
+  .screen{
+    position:fixed;
+    inset:0;
+    width:100%; max-width:420px; margin:0 auto;   /* та же ширина колонки, что у .phone — раньше на это не проверялись 7 из 11 экранов и на широких окнах открывались во весь экран */
+    background:var(--bg);
+    display:flex;
+    flex-direction:column;
+    transform:translateX(100vw);     /* НЕ 100% — проценты в transform считаются от ширины самого элемента (420px), а он центрирован
+                                         на widescreen; при 100% сдвиг не долетает до края окна и на широких экранах остаётся видна
+                                         полоска «закрытого» экрана (тот же паттерн, что уже применён ниже к #settingsScreen и др.) */
+    transition:transform .22s ease;
+    z-index:15;
+  }
+  .screen.open{ transform:translateX(0); }
+  .screen.no-anim{ transition:none; }   /* переключение вкладок нижней панели — без анимации */
+  /* «Настройки», «Раскрой», «Склад», «Каталог» — вкладки нижней панели: она остаётся видимой поверх них.
+     Общие правила (z-index / ширина колонки / исходное положение за краем экрана) вынесены в одно место,
+     чтобы не дублировать одну и ту же тройку объявлений в четырёх блоках. */
+  #settingsScreen, #cuttingScreen, #warehouseScreen, #catalogScreen{
+    z-index:13;
+    width:100%; max-width:420px; margin:0 auto;      /* та же ширина и центровка, что у .phone и нижней панели (на широком окне не растягивается) */
+    transform:translateX(100vw);                     /* закрытый экран целиком за краем окна */
+  }
+  #settingsScreen.open, #cuttingScreen.open, #warehouseScreen.open, #catalogScreen.open{ transform:translateX(0); }
+
+  /* ===== Каталог: карточки цвета (ПВХ / алюминий). Цвета — через переменные --cc-* (берутся из переменных приложения),
+     как у экрана «Мои проекты»; тёмной темы нет ===== */
+  #catalogScreen{
+    --cc-stage:var(--bg); --cc-card:var(--card); --cc-field:var(--bg); --cc-ink:var(--ink); --cc-soft:var(--ink-soft); --cc-line:var(--line);
+    --cc-warn-bg:var(--chip-warn-bg); --cc-warn-ink:var(--chip-warn-ink); --cc-ok-bg:var(--chip-ok-bg); --cc-ok-ink:var(--chip-ok-ink); --cc-mid-bg:var(--chip-mid-bg); --cc-mid-ink:var(--chip-mid-ink);
+    --cc-btn:var(--accent); --cc-btn-ink:var(--accent-ink); --cc-on:var(--header); --cc-on-ink:#ffffff;
+    background:var(--cc-stage); color:var(--cc-ink);
+  }
+  #catalogScreen .screen-body{ padding-bottom:calc(90px + env(safe-area-inset-bottom, 0px)); }
+  .cc-bar{ display:flex; gap:8px; padding:12px 14px 0 14px; flex-shrink:0; }
+  .cc-seg{
+    flex:1; padding:10px 10px; border-radius:var(--radius-md); font-size:var(--fs-base); font-weight:600; font-family:inherit; cursor:pointer;
+    background:var(--cc-card); color:var(--cc-ink); border:1px solid var(--cc-line);
+  }
+  .cc-seg.on{ background:var(--cc-on); color:var(--cc-on-ink); border-color:var(--cc-on); }
+  .cc-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:12px; align-items:start; }
+  .cc-card{ background:var(--cc-card); border:1px solid var(--cc-line); border-radius:var(--radius-md); overflow:hidden; color:var(--cc-ink); }
+  .cc-sw{ height:104px; position:relative; border-bottom:1px solid var(--cc-line); }
+  .cc-pill{ position:absolute; left:8px; font-size:var(--fs-2xs); padding:2px 8px; border-radius:var(--radius-sm); background:var(--cc-field); color:var(--cc-ink); }
+  .cc-body{ padding:12px; display:flex; flex-direction:column; gap:8px; }
+  .cc-code{ font-size:var(--fs-lg); font-weight:600; }
+  .cc-name{ font-size:var(--fs-sm); color:var(--cc-soft); }
+  .cc-hex{ font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:var(--fs-sm); }
+  .cc-rgb{ font-size:var(--fs-xs); color:var(--cc-soft); margin:2px 0 4px; }
+  .cc-row{ display:flex; justify-content:space-between; gap:8px; font-size:var(--fs-xs); }
+  .cc-row span:first-child{ color:var(--cc-soft); flex-shrink:0; }
+  .cc-row span:last-child{ text-align:right; }
+  .cc-ph{ border:1px dashed var(--cc-line); border-radius:var(--radius-sm); padding:4px 8px; font-size:var(--fs-xs); color:var(--cc-soft); }
+  .cc-tag{ display:inline-block; font-size:var(--fs-2xs); padding:1px 6px; border-radius:var(--radius-sm); background:var(--cc-warn-bg); color:var(--cc-warn-ink); }
+  .cc-tag.exact{ background:var(--cc-ok-bg); color:var(--cc-ok-ink); }
+  .cc-tag.approx{ background:var(--cc-mid-bg); color:var(--cc-mid-ink); }
+  .cc-note{ display:flex; gap:6px; align-items:center; font-size:var(--fs-xs); padding:6px 8px; border-radius:var(--radius-sm); background:var(--cc-warn-bg); color:var(--cc-warn-ink); }
+  .cc-btn{
+    width:100%; font-size:var(--fs-sm); font-weight:600; padding:10px 8px; border-radius:var(--radius-md); cursor:pointer; font-family:inherit;
+    background:var(--cc-field); color:var(--cc-ink); border:1px solid var(--cc-line);
+  }
+  .cc-btn.main{ background:var(--cc-btn); color:var(--cc-btn-ink); border-color:var(--cc-btn); }
+  /* отключённые цвета каталога (долгое нажатие): внизу списка, приглушены */
+  .cc-card{ -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
+  .cc-card.off{ opacity:.55; }
+  .cc-card.off .cc-sw{ filter:grayscale(.6); }
+  .cc-btn:disabled{ cursor:default; }
+  .cc-btn.main:disabled{ background:var(--cc-field); color:var(--cc-soft); border-color:var(--cc-line); }
+  .cc-divider{ grid-column:1 / -1; font-size:var(--fs-xs); color:var(--cc-soft); padding:6px 2px 0; }
+  #settingsScreen .screen-body{ padding-bottom:calc(90px + env(safe-area-inset-bottom, 0px)); }
+  /* экран «Цвета» (Настройки): включить / отключить цвета для выбора в форме элемента */
+  .cs-tabs{ display:flex; gap:8px; padding:12px 14px 0 14px; flex-shrink:0; }
+  .cs-tab{
+    flex:1; padding:10px; border-radius:var(--radius-md); font-size:var(--fs-base); font-weight:600; font-family:inherit; cursor:pointer;
+    background:var(--card); color:var(--ink); border:1px solid var(--line);
+  }
+  .cs-tab.on{ background:var(--header); color:var(--header-ink); border-color:var(--header); }
+  .cs-row{ display:flex; align-items:center; gap:12px; padding:12px 2px; border-bottom:1px solid var(--line); }
+  .cs-row .color-swatch{ width:26px; height:26px; flex-shrink:0; }
+  .cs-name{ flex:1; min-width:0; font-size:var(--fs-md); color:var(--ink); }
+  .cs-row.off .cs-name, .cs-row.off .color-swatch{ opacity:.45; }
+  .cs-switch{
+    -webkit-appearance:none; appearance:none; margin:0; flex-shrink:0; cursor:pointer; position:relative;
+    width:46px; height:26px; border-radius:var(--radius-pill); background:var(--switch-track); transition:background .15s;
+  }
+  .cs-switch::after{
+    content:""; position:absolute; top:3px; left:3px; width:20px; height:20px; border-radius:50%;
+    background:#ffffff; transition:transform .15s;
+  }
+  .cs-switch:checked{ background:var(--header); }
+  .cs-switch:checked::after{ transform:translateX(20px); }
+  /* пункты настроек: круглая иконка, название и подпись, стрелка справа, разделители на всю ширину */
+  .menu-list{ margin:0 -14px; border-top:1px solid var(--line); }
+  .menu-row{
+    display:flex; align-items:center; gap:14px; padding:14px 16px; cursor:pointer;
+    border-bottom:1px solid var(--line); background:transparent;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .menu-row:active{ background:var(--card); }
+  .menu-ico{
+    width:46px; height:46px; border-radius:50%; flex-shrink:0;
+    background:var(--accent); color:var(--accent-ink);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .menu-txt{ flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+  .menu-title{ font-size:var(--fs-lg); font-weight:700; color:var(--ink); }
+  .menu-sub{ font-size:var(--fs-sm); font-weight:600; color:var(--ink-soft); }
+  .menu-chev{ flex-shrink:0; color:var(--ink); }
+  /* «О приложении» (окно из настроек): приглашение писать и контакты */
+  .about-ver{ margin:-8px 0 12px; font-size:var(--fs-sm); font-weight:600; color:var(--ink-soft); }
+  .about-text{ margin:0 0 16px; font-size:var(--fs-base); line-height:1.5; color:var(--ink); }
+  .about-sub{ font-size:var(--fs-xs); font-weight:700; letter-spacing:.6px; text-transform:uppercase; color:var(--ink-soft); margin-bottom:10px; }
+  .about-links{ display:flex; gap:10px; }
+  .about-link{ flex:1; display:flex; align-items:center; justify-content:center; gap:8px; padding:11px 8px; border-radius:var(--radius-md); background:var(--bg); border:1px solid var(--line); color:var(--ink); font-size:var(--fs-base); font-weight:700; text-decoration:none; -webkit-tap-highlight-color:transparent; }
+  .about-link:active{ background:var(--card); }
+  .about-link svg{ width:26px; height:26px; display:block; flex-shrink:0; }
+  .screen-body{
+    flex:1;
+    overflow-y:auto;
+    padding:16px 14px calc(24px + env(safe-area-inset-bottom, 0px)) 14px;   /* .screen занимает inset:0, поэтому низ контента
+                                                                                тоже должен учитывать safe-area (как уже сделано для верха в header/.modal-topbar) */
+  }
+  .section-label{
+    font-size:var(--fs-xs);
+    color:var(--ink-soft);
+    margin-bottom:8px;
+    padding-left:2px;
+  }
+
+  /* New project form */
+  .modal-topbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    background:var(--card);
+    border-bottom:1px solid var(--line);
+    padding:calc(14px + env(safe-area-inset-top, 0px)) 16px 14px;
+    flex-shrink:0;
+  }
+  .topbar-btn{
+    background:none;
+    border:none;
+    font-size:var(--fs-md);
+    cursor:pointer;
+    padding:4px 10px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    min-height:48px;
+    min-width:48px;
+    box-sizing:border-box;
+  }
+  .topbar-btn.muted{ color:var(--ink-soft); }
+  .topbar-title{ font-size:var(--fs-md); font-weight:600; color:var(--ink); }
+  #elementScreen{ z-index:16; }                     /* форма элемента поверх экрана элемента (кнопка «Добавить элемент» в редакторе окна) */
+  #newProjectScreen{ z-index:16; }                 /* форма проекта поверх экрана проекта (там она тоже открывается на правку) */
+  .screen > .form-body{ flex:1; overflow-y:auto; }
+
+  /* ===== Раскрой ===== */
+  #cuttingScreen .screen-body{ padding:14px 14px calc(90px + env(safe-area-inset-bottom, 0px)); }
+  #warehouseScreen .screen-body{ padding:14px 14px calc(90px + env(safe-area-inset-bottom, 0px)); }
+  .cut-settings{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
+  .cut-help-body{ max-height:62vh; overflow-y:auto; margin:0 -4px 14px; padding:0 4px; font-size:var(--fs-sm); line-height:1.45; color:var(--ink); }
+  .cut-help-body h3{ font-size:var(--fs-base); margin:16px 0 6px; color:var(--header); }
+  .cut-help-body h3:first-child{ margin-top:0; }
+  .cut-help-body p{ margin:0 0 8px; }
+  .cut-help-body ul, .cut-help-body ol{ margin:0 0 8px; padding-left:20px; }
+  .cut-help-body li{ margin-bottom:5px; }
+  .cut-help-chip{ display:inline-block; padding:0 6px; border-radius:4px; font-size:var(--fs-2xs); color:var(--ink-soft); border:1px solid var(--line); }
+  .cut-help-remnant{ background:#dfe6f5; }
+  .cut-help-waste{ background:repeating-linear-gradient(45deg,var(--line),var(--line) 4px,#f4f7fc 4px,#f4f7fc 8px); }
+  .cut-result-top{ display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
+  .cut-icon{ flex:0 0 auto; width:84px; height:40px; margin-bottom:8px; }
+  .cut-icon svg{ width:100%; height:100%; display:block; }
+  .cut-icon-sm{ width:56px; height:28px; margin:0; }
+  .cg-right{ display:flex; align-items:center; gap:10px; }
+  .cut-check{ display:flex; align-items:center; gap:8px; font-size:var(--fs-xs); color:var(--ink-soft); margin:0 0 14px; cursor:pointer; }
+  .cut-group-row select.cut-unit{ margin-top:6px; border:1px solid var(--line); border-radius:var(--radius-sm); padding:3px 6px; font-size:var(--fs-2xs); background:#fff; color:var(--ink); max-width:100%; }
+  .cut-variants{ display:flex; gap:6px; overflow-x:auto; margin:0 0 10px; padding:2px; -webkit-overflow-scrolling:touch; }
+  .cut-var{ flex:0 0 auto; display:flex; flex-direction:column; gap:2px; text-align:left; border:1px solid var(--line); background:#fff; border-radius:var(--radius-md); padding:6px 10px; font-size:var(--fs-2xs); color:var(--ink-soft); cursor:pointer; }
+  .cut-var b{ color:var(--ink); font-size:var(--fs-xs); }
+  .cut-var.on{ border-color:var(--header); box-shadow:inset 0 0 0 1px var(--header); }
+  .cut-var:disabled{ opacity:.45; cursor:default; }
+  .cut-badge{ display:inline-block; background:var(--success-bg); color:var(--success); border-radius:var(--radius-sm); padding:2px 8px; font-size:var(--fs-2xs); font-weight:600; margin-bottom:10px; }
+  .cut-algo{ font-size:var(--fs-2xs); color:var(--ink-soft); margin:0 0 10px; }
+  .cut-warn{ background:#fff4e5; color:#8a5300; border-radius:var(--radius-md); padding:8px 10px; font-size:var(--fs-xs); margin-bottom:10px; }
+  .cut-summary{ background:var(--card); border-radius:var(--radius-lg); padding:14px; margin-bottom:14px; }
+  .cut-actions{ display:flex; flex-direction:column; gap:8px; margin-bottom:6px; }
+  .cut-actions .btn-block{ margin-bottom:0; }
+  .btn-block.ghost{ background:#fff; color:var(--header); border:1px solid var(--header); }
+  .btn-block:disabled, .cut-project-select:disabled{ opacity:.6; cursor:default; }
+  .cut-settings label{ flex:1; font-size:var(--fs-xs); color:var(--ink-soft); display:flex; flex-direction:column; gap:4px; }
+  .cut-settings input{ border:1px solid var(--line); border-radius:var(--radius-md); padding:8px 10px; font-size:var(--fs-base); color:var(--ink); width:100%; }
+  .cut-project-select{ width:100%; border:1px solid var(--line); border-radius:var(--radius-md); padding:10px 12px; font-size:var(--fs-md); color:var(--ink); background:#fff; margin-bottom:14px; display:flex; align-items:center; justify-content:space-between; cursor:pointer; text-align:left; font-family:inherit; }
+  .cut-project-select .chevron{ color:var(--ink-soft); margin-left:8px; }
+  .cut-empty{ text-align:center; color:var(--ink-soft); padding:40px 20px; font-size:var(--fs-base); }
+  .cut-section-title{ font-size:var(--fs-sm); font-weight:600; color:var(--ink-soft); margin:4px 0 8px; }
+  .cut-groups{ display:flex; flex-direction:column; gap:8px; margin-bottom:16px; }
+  .cut-group-row{ display:flex; justify-content:space-between; align-items:center; background:var(--card); border-radius:var(--radius-md); padding:10px 12px; font-size:var(--fs-sm); }
+  .cut-group-row .cg-main{ font-weight:600; color:var(--ink); }
+  .cut-group-row .cg-sub{ color:var(--ink-soft); font-size:var(--fs-xs); margin-top:2px; }
+  .cut-group-row .cg-count{ font-weight:600; color:var(--header); white-space:nowrap; margin-left:10px; text-align:right; }
+  .cut-swatch{ display:inline-block; width:10px; height:10px; border-radius:50%; border:1px solid var(--line); margin-right:6px; vertical-align:middle; }
+  .btn-block{ width:100%; padding:13px; border:none; border-radius:var(--radius-md); color:#fff; font-size:var(--fs-md); font-weight:600; cursor:pointer; margin-bottom:18px; }
+  .btn-block.primary{ background:var(--header); }
+  .btn-block.success{ background:var(--success); }
+  .btn-block.compact{ margin-bottom:10px; }
+  .cut-result-card{ border:1px solid var(--line); border-radius:var(--radius-lg); padding:14px; margin-bottom:14px; background:#fff; }
+  .cut-result-title{ font-weight:600; font-size:var(--fs-base); color:var(--ink); margin-bottom:8px; }
+  .cut-result-head{ display:grid; grid-template-columns:1fr 1fr; gap:8px 14px; margin-bottom:12px; }
+  .cut-result-head .cf .cf-label{ color:var(--ink-soft); display:block; font-size:var(--fs-2xs); }
+  .cut-result-head .cf .cf-value{ font-weight:600; color:var(--ink); font-size:var(--fs-sm); }
+  .cut-stock-row{ margin-bottom:8px; }
+  .cut-stock-label{ font-size:var(--fs-2xs); color:var(--ink-soft); margin-bottom:4px; }
+  .cut-bar{ display:flex; height:26px; border-radius:var(--radius-sm); overflow:hidden; border:1px solid var(--line); }
+  .cut-piece{ display:flex; align-items:center; justify-content:center; font-size:var(--fs-2xs); color:var(--ink); border-right:1px solid rgba(255,255,255,0.6); white-space:nowrap; overflow:hidden; }
+  .cut-piece:last-child{ border-right:none; }
+  .cut-piece.cp-waste{ background:repeating-linear-gradient(45deg,var(--line),var(--line) 4px,#f4f7fc 4px,#f4f7fc 8px); color:var(--ink-soft); }
+  .cut-piece.cp-remnant{ background:#dfe6f5; color:var(--ink-soft); }
+  .cut-stock-row--wh .cut-stock-label{ color:var(--success); font-weight:600; }
+  .cut-wh-tag{ display:inline-block; background:var(--success-bg); color:var(--success); border-radius:var(--radius-sm); padding:1px 6px; font-size:var(--fs-2xs); font-weight:600; margin-left:6px; }
+  .cut-wh-total{ display:flex; gap:14px; margin-bottom:10px; font-size:var(--fs-xs); color:var(--ink-soft); }
+
+
+  /* ===================== Склад (остатки профиля) ===================== */
+
+  .wh-find-btn{ width:100%; padding:13px; border-radius:var(--radius-md); border:1px solid var(--header); background:none; color:var(--header); font-size:var(--fs-md); font-weight:600; cursor:pointer; margin-bottom:16px; }
+  .wh-list{ display:flex; flex-direction:column; gap:8px; margin-bottom:10px; }
+  .wh-row{ display:flex; align-items:center; gap:10px; background:var(--card); border:1px solid var(--line); border-radius:var(--radius-md); padding:10px 12px; cursor:pointer; }
+  .wh-row .wh-main{ flex:1; min-width:0; }
+  .wh-row .wh-title{ font-weight:600; font-size:var(--fs-base); color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .wh-row .wh-sub{ font-size:var(--fs-xs); color:var(--ink-soft); margin-top:2px; }
+  .wh-row .wh-len{ font-weight:600; color:var(--header); font-size:var(--fs-base); white-space:nowrap; }
+  .wh-row .wh-qty{ font-size:var(--fs-2xs); color:var(--ink-soft); text-align:right; margin-top:2px; }
+  .wh-row .wh-del{ background:none; border:none; color:var(--ink-soft); cursor:pointer; padding:4px; flex-shrink:0; display:flex; align-items:center; justify-content:center; min-width:48px; min-height:48px; box-sizing:border-box; margin:-4px; }
+  .wh-row .wh-del:hover{ color:var(--danger); }
+  .wh-result-card{ border:1px solid var(--line); border-radius:var(--radius-lg); padding:14px; margin-bottom:12px; background:#fff; }
+  .wh-result-card.wh-best{ border-color:var(--header); }
+  .wh-result-title{ font-weight:600; font-size:var(--fs-base); color:var(--ink); margin-bottom:6px; }
+  .wh-result-grid{ display:grid; grid-template-columns:1fr 1fr; gap:6px 14px; }
+  .wh-result-grid .wf-label{ color:var(--ink-soft); display:block; font-size:var(--fs-2xs); }
+  .wh-result-grid .wf-value{ font-weight:600; color:var(--ink); font-size:var(--fs-sm); }
+  .wh-no-results{ text-align:center; color:var(--ink-soft); padding:20px; font-size:var(--fs-sm); }
+  .wh-sheet input[type="text"], .wh-sheet input[type="number"]{
+    width:100%; padding:11px 12px; border-radius:var(--radius-md); border:1px solid var(--line);
+    background:var(--card); color:var(--ink); font-size:var(--fs-md); outline:none; margin-bottom:12px; font-family:inherit;
+  }
+  .wh-sheet label{ display:block; font-size:var(--fs-xs); color:var(--ink-soft); margin-bottom:5px; }
+  .wh-sheet .wh-field{ margin-bottom:2px; }
+  /* ===== Активация по коду (привязка к устройству) ===== */
+  .license-lock{ position:fixed; inset:0; z-index:500; background:var(--bg); display:flex; align-items:center; justify-content:center; padding:24px; }
+  .license-box{ width:100%; max-width:380px; display:flex; flex-direction:column; gap:12px; }
+  .license-box h2{ margin:0; font-size:var(--fs-2xl); color:var(--ink); }
+  .license-note{ margin:0; font-size:var(--fs-base); color:var(--ink-soft); line-height:1.4; }
+  .license-id{ font-family:monospace; font-size:var(--fs-2xl); letter-spacing:2px; text-align:center; padding:14px; border-radius:var(--radius-md); background:var(--card); color:var(--ink); user-select:all; }
+  .license-box textarea{ width:100%; box-sizing:border-box; padding:11px 12px; border-radius:var(--radius-md); border:1px solid var(--line); background:var(--card); color:var(--ink); font-size:var(--fs-sm); font-family:monospace; resize:none; outline:none; }
+  .license-box .btn{ width:100%; }
+  .license-msg{ min-height:18px; font-size:var(--fs-sm); color:var(--danger); }
+  .license-msg.ok{ color:var(--success); }
+  .license-links{ display:flex; gap:10px; }
+  /* компактное окно (отзыв лицензии): небольшая карточка поверх затемнённого приложения */
+  .license-lock.compact{ background:rgba(0,0,0,.45); }
+  .license-lock.compact .license-box{ max-width:320px; background:var(--bg); padding:20px; border-radius:var(--radius-lg); box-shadow:0 8px 32px rgba(0,0,0,.3); }
+  .license-lock.compact .license-box h2{ order:-2; font-size:var(--fs-xl); }
+  .license-lock.compact .license-msg{ order:-1; min-height:0; font-size:var(--fs-base); }
+  .license-lock.compact #licenseNote, .license-lock.compact #licenseInput, .license-lock.compact .license-box > .btn.primary{ display:none; }
+  .license-box .license-link{ flex:1; width:auto; display:flex; align-items:center; justify-content:center; box-sizing:border-box; text-align:center; text-decoration:none; padding-top:8px; padding-bottom:8px; }
+  .license-link svg{ width:30px; height:30px; display:block; }
+  .wh-mat-tabs{ display:flex; gap:6px; margin-bottom:12px; }
+  .wh-mat-tabs button{ flex:1; padding:10px 0; border-radius:var(--radius-md); border:1px solid var(--line); background:var(--card); color:var(--ink-soft); font-size:var(--fs-base); font-weight:600; cursor:pointer; }
+  .wh-mat-tabs button.active{ background:var(--header); border-color:var(--header); color:#fff; }
+  .wh-select{ display:flex; align-items:center; gap:10px; border:1px solid var(--line); border-radius:var(--radius-md); background:var(--card); padding:0 12px; margin-bottom:12px; cursor:pointer; }
+  .wh-select select{ flex:1 1 0; width:0; min-width:0; border:none; background:none; padding:11px 0; font-size:var(--fs-md); color:var(--ink); font-family:inherit; outline:none; -webkit-appearance:none; appearance:none; pointer-events:none; text-overflow:ellipsis; }
+  .wh-select .chevron{ color:var(--ink-soft); }
+  #whPickerBackdrop{ z-index:45; }
+  .wh-pick-from-project{ width:100%; padding:9px 0; margin:-2px 0 12px; border-radius:var(--radius-md); border:1px dashed var(--line); background:none; color:var(--header); font-size:var(--fs-sm); font-weight:600; cursor:pointer; }
+  .wh-piece-opt{ display:flex; flex-direction:column; width:100%; background:none; border:none; border-radius:var(--radius-md); padding:10px; margin-bottom:2px; text-align:left; cursor:pointer; font-family:inherit; }
+  .wh-piece-opt:hover{ background:var(--card); }
+  .wh-piece-opt .wp-main{ font-size:var(--fs-base); font-weight:600; color:var(--ink); }
+  .wh-piece-opt .wp-sub{ font-size:var(--fs-xs); color:var(--ink-soft); margin-top:2px; }
+  textarea.form-input{ resize:none; font-family:inherit; line-height:1.35; }
+  .radio-opt.disabled{ opacity:0.5; cursor:default; }
+  .topbar-btn.accent{ color:var(--header); font-weight:700; }
+
+  .form-body{ padding:18px 16px; }
+  .form-row{ margin-bottom:20px; }
+  .form-row.inline{
+    display:flex;
+    align-items:center;
+    gap:14px;
+  }
+  .form-row.inline .form-label{ width:120px; flex-shrink:0; }
+  .form-label{
+    font-size:var(--fs-base);
+    color:var(--ink);
+    font-weight:600;
+    line-height:1.3;
+  }
+  .radio-group{
+    display:flex;
+    gap:22px;
+    margin-top:10px;
+  }
+  .radio-opt{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-size:var(--fs-base);
+    color:var(--ink);
+    cursor:pointer;
+  }
+  .radio-opt input{ display:none; }
+  .radio-dot{
+    width:19px;
+    height:19px;
+    border-radius:50%;
+    border:2px solid var(--ink-soft);
+    display:inline-block;
+    position:relative;
+    flex-shrink:0;
+  }
+  .radio-opt input:checked + .radio-dot{ border-color:var(--header); }
+  .radio-opt input:checked + .radio-dot::after{
+    content:"";
+    position:absolute;
+    inset:3px;
+    border-radius:50%;
+    background:var(--header);
+  }
+  .form-input{
+    flex:1;
+    min-width:0;
+    border:none;
+    border-bottom:1px solid var(--line);
+    background:none;
+    color:var(--ink);
+    font-size:var(--fs-md);
+    padding:6px 2px 8px 2px;
+    min-height:40px;                 /* удобная высота под палец */
+    outline:none;
+  }
+  .form-input:focus{ border-bottom-color:var(--header); }
+  .form-input-wrap{
+    flex:1;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    border-bottom:1px solid var(--line);
+  }
+  .form-input-wrap .form-input{ border-bottom:none; }
+  /* длинное название (напр. «Тёмно-серый (Planibel Dark Grey)») не растягивает строку — обрезается, стрелка остаётся на месте */
+  .form-input-wrap{ min-width:0; }
+  .form-input-wrap select.form-input{ min-width:0; flex:1 1 0; width:0; text-overflow:ellipsis; }
+  .form-input-wrap:focus-within{ border-bottom-color:var(--header); }
+  .chevron{ color:var(--ink-soft); font-size:var(--fs-lg); padding-bottom:6px; }
+  .color-swatch{
+    width:20px;
+    height:20px;
+    border-radius:50%;
+    border:1px solid var(--line);
+    flex-shrink:0;
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,0.04);
+  }
+  /* металлик (RAL 9006/9007/9022) — лёгкий блик, чтобы кружок не выглядел плоским цветом */
+  .color-swatch.metallic{
+    background-image:radial-gradient(circle at 32% 28%, rgba(255,255,255,0.55), rgba(255,255,255,0) 55%);
+    background-blend-mode:screen;
+  }
+  /* анодирование — официального HEX нет, кружок штрихуется, чтобы не выглядеть как точный цвет */
+  .color-swatch.anodized{
+    background-image:repeating-linear-gradient(45deg, rgba(255,255,255,0.35) 0 2px, transparent 2px 5px);
+    border-style:dashed;
+    border-color:var(--ink-soft);
+  }
+  /* окно: список «пакетов» в выборе цвета окна — вторая строка с разговорным названием и описанием */
+  .color-opt .opt-text{ display:flex; flex-direction:column; min-width:0; }
+  .color-opt .opt-sub{ font-size:var(--fs-xs); font-weight:400; color:var(--ink-soft); margin-top:1px; }
+  .color-opt .opt-desc{
+    font-size:var(--fs-xs); font-weight:400; color:var(--ink-soft); margin-top:3px; line-height:1.3;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  }
+  .color-opt.glass-opt{ align-items:flex-start; }
+  .color-opt.glass-opt .color-swatch{ margin-top:2px; }
+  select.form-input{
+    -webkit-appearance:none;
+    appearance:none;
+    background:none;
+    border:none;
+    padding-right:4px;
+  }
+
+  .project-canvas{
+    flex:1;
+    background:var(--surface-2);
+    overflow-y:auto;
+    padding:14px;
+  }
+  .project-canvas .empty{ margin-top:60px; }
+  /* список элементов проекта — как в старом проекте: две колонки, у каждой карточки миниатюра схемы,
+     внизу слева номер, справа «ширина * высота» и количество */
+  .elem-list{ display:grid; grid-template-columns:1fr 1fr; gap:8px; align-items:start; }
+  .elem-card{
+    background:transparent;
+    border:1.5px solid var(--border-strong);
+    border-radius:var(--radius-sm);
+    padding:6px;
+    cursor:pointer;
+    min-width:0;
+  }
+  .elem-card:active{ background:rgba(0,0,0,0.04); }
+  .elem-thumb{ width:74%; aspect-ratio:1 / 1; margin:0 auto; }   /* область миниатюры по центру карточки, схема — по центру области */
+  .elem-thumb svg{ width:100%; height:100%; display:block; pointer-events:none; }
+  .elem-foot{ display:flex; align-items:flex-end; justify-content:space-between; gap:6px; margin-top:4px; }
+  .elem-num{ font-size:var(--fs-display); line-height:1; color:var(--ink-soft); font-weight:300; flex:none; }
+  .elem-meta{ text-align:right; font-size:var(--fs-sm); line-height:1.35; color:var(--ink); min-width:0; flex:1 1 auto; overflow-wrap:anywhere; }   /* длинные «Цвет рамы / Цвет окна» переносятся, а не наезжают на соседнюю карточку */
+
+  /* Element view screen */
+  .elem-view-body{
+    flex:1;
+    background:var(--surface-2);
+    display:flex;
+    flex-direction:column;
+    padding:5px;
+    overflow-y:auto;
+  }
+  .elem-diagram-row{
+    display:flex;
+    align-items:center;
+    gap:2px;
+    flex:1;
+    position:relative;
+  }
+  .elem-shape{
+    flex:1;
+    max-width:260px;
+    aspect-ratio:1000/2000;
+    margin:0 auto;
+    padding:10px;
+    background:#ffffff;
+    border:1.5px solid #b9c2cf;
+    box-shadow:inset 0 0 0 2px #ffffff, inset 0 0 0 3px #d7dce3;
+  }
+  .elem-glass{
+    width:100%;
+    height:100%;
+    background:linear-gradient(160deg, #eaf6fd 0%, #cdeaf9 55%, #eaf6fd 100%);
+    border:1px solid #9fc9e0;
+    position:relative;
+  }
+  .sash-line{
+    position:absolute;
+    background:#4a5b73;
+  }
+  .sash-line.top{
+    left:6%; right:6%; top:8%;
+    height:1.5px;
+  }
+  .sash-line.mid-v{
+    top:0; bottom:0; left:50%;
+    width:1.5px;
+    margin-left:-0.75px;
+  }
+  .sash-line.diag{
+    left:8%;
+    top:10%;
+    height:0;
+    border-top:1px solid #4a5b73;
+    transform-origin:0 0;
+  }
+  /* .elem-nav-row/.nav-arrow* убраны — не использовались нигде в разметке (мёртвый CSS) */
+  .elem-bottom-row{
+    position:relative;
+    margin-top:0;
+    padding:0;
+  }
+  .elem-width-wrap{ width:100%; }
+  .dim-btn{
+    background:#ffffff;
+    border:1px solid var(--line);
+    color:var(--ink);
+    font-size:var(--fs-md);
+    font-weight:600;
+    border-radius:var(--radius-sm);
+    padding:8px 14px;
+    cursor:pointer;
+  }
+  .dim-btn:hover{ border-color:var(--header); }
+  .dim-height{
+    writing-mode:vertical-rl;
+    transform:rotate(180deg);
+    padding:14px 8px;
+  }
+
+  /* --- Схема элемента (перенос логики старого проекта) --- */
+  #elemShape{
+    padding:0; border:none; box-shadow:none; background:none;
+    margin:0; max-width:none; width:auto; flex:1 1 auto; min-width:0;
+  }
+  .elem-diagram-row{ align-items:stretch; flex:0 0 auto; margin-top:auto; }
+  .elem-bottom-row{ margin-bottom:auto; }
+  /* Размерные линии — как в PDF: выносные линии от контура, размерная линия с косыми засечками на концах,
+     число над горизонтальной линией / слева от вертикальной, общий размер жирным.
+     diagram-core по высоте равен самой схеме (aspect-ratio у #elemShape), поэтому вертикальные линии
+     идут ровно по высоте окна, а не по всей высоте экрана. */
+  .diagram-core{ flex:1; min-width:0; display:flex; align-items:stretch; }
+  .dm-ext{ position:absolute; background:transparent; pointer-events:none; }
+  .dm-ext-x{ width:1.5px; top:-25px; bottom:-6px; margin-left:-0.75px; }
+  .dm-ext-y{ height:1.5px; right:-25px; width:31px; margin-top:-0.75px; }
+  /* линейки построчной ширины ближе к окну — их выносные тянутся до контура (25px);
+     у второй и последующих строк «окно» сверху — это предыдущая строка (зазор 6px), не сама рама */
+  .dim-row-per-line:not(:first-child) .dm-ext-x{ top:-6px; }
+  /* горизонтально: сегменты (ряд ближе к окну) и общий размер (ниже) */
+  .dim-row{ display:flex; gap:0; padding-left:0; margin-top:0; position:relative; }
+  .dim-row .dim-btn{
+    position:relative;
+    background:none; border:none; border-radius:0;
+    border-bottom:1.5px solid #333333;
+    height:20px; padding:0 0 2px; margin:0;
+    display:flex; align-items:flex-end; justify-content:center;
+    font-size:var(--fs-sm); line-height:1.15;
+    cursor:pointer;
+  }
+  .dim-row .dim-btn::before, .dim-row .dim-btn:last-child::after,
+  .dim-total-horiz::before, .dim-total-horiz::after,
+  .dim-col .dim-btn::before, .dim-col .dim-btn:last-child::after,
+  .dim-total-vert::before, .dim-total-vert::after{
+    content:""; position:absolute; width:16px; height:1.5px; background:#333333;
+    transform:rotate(-45deg); pointer-events:none;
+  }
+  .dim-row .dim-btn::before{ left:-8px; bottom:-1.5px; }
+  .dim-row .dim-btn:last-child::after{ right:-8px; bottom:-1.5px; }
+  .dim-row .dim-btn span{ font-weight:500; color:#1d1d1d; padding:0 4px; }
+  .dim-row .dim-btn.dim-only span{ font-weight:700; font-size:var(--fs-base); }
+  /* вертикально: колонка сегментов (ближе к окну) и колонка общего размера (левее) */
+  .dim-col{
+    width:20px; flex-shrink:0; margin-right:25px; position:relative;
+    display:flex; flex-direction:column; gap:0;
+  }
+  .dim-col .dim-btn{
+    position:relative;
+    background:none; border:none; border-radius:0;
+    border-right:1.5px solid #333333;
+    width:20px; padding:0 3px 0 0; margin:0 0 0 auto;
+    display:flex; align-items:center; justify-content:flex-end;
+    font-size:var(--fs-sm); line-height:1.15;
+    cursor:pointer;
+  }
+  .dim-col .dim-btn::before{ top:-0.75px; right:-8.75px; }
+  .dim-col .dim-btn:last-child::after{ bottom:-0.75px; right:-8.75px; }
+  .dim-col .dim-btn span{
+    font-weight:500; color:#1d1d1d; padding:0;
+    writing-mode:vertical-rl; transform:rotate(180deg);
+  }
+  .dim-col .dim-btn.dim-only span{ font-weight:700; font-size:var(--fs-base); }
+
+  /* Общий размер (под сегментами / левее сегментов) */
+  .dim-total{
+    display:flex; position:relative;
+  }
+  .dim-total-horiz{
+    height:30px; margin:0;
+    align-items:flex-end; justify-content:center;
+    border-bottom:1.5px solid #333333;
+  }
+  .dim-total-horiz::before{ left:-8px; bottom:-1.5px; }
+  .dim-total-horiz::after{ right:-8px; bottom:-1.5px; }
+  .elem-width-wrap{ position:relative; }
+  .elem-width-wrap::before, .elem-width-wrap::after{      /* выносные линии по краям окна: от контура до общего размера */
+    content:""; position:absolute; top:-3px; bottom:-6px; width:1.5px; background:transparent; pointer-events:none;
+  }
+  .elem-width-wrap::before{ left:-0.75px; }
+  .elem-width-wrap::after{ right:-0.75px; }
+  .dim-total-vert{
+    width:15px; flex-shrink:0; margin-right:25px;
+    align-items:center; justify-content:flex-end;
+    border-right:1.5px solid #333333;
+  }
+  .dim-total-vert::before{ top:-0.75px; right:-8.75px; }
+  .dim-total-vert::after{ bottom:-0.75px; right:-8.75px; }
+  .dim-total-vert .dm-x{ position:absolute; height:1.5px; right:-49px; width:55px; background:transparent; pointer-events:none; }
+  .dim-total-vert .dm-x-t{ top:-0.75px; }
+  .dim-total-vert .dm-x-b{ bottom:-0.75px; }
+  .dim-total span{
+    padding:0 6px; font-size:var(--fs-base); font-weight:700; color:#1d1d1d; cursor:pointer;
+  }
+  .dim-total-vert span{
+    writing-mode:vertical-rl; transform:rotate(180deg); padding:0 4px 0 0;
+  }
+  /* Размерные линии в стиле Android-версии: перпендикулярные засечки на концах, число стоит прямо на линии
+     (линия «разрывается» плашкой цвета фона (var(--bg)) под числом). Положение самих линий и выносных не меняется. */
+  .dim-row .dim-btn::before, .dim-row .dim-btn:last-child::after,
+  .dim-total-horiz::before, .dim-total-horiz::after{
+    width:1.5px; height:16px; transform:none; bottom:-8.75px; z-index:2;   /* поверх серых выносных линий */
+  }
+  .dim-row .dim-btn::before, .dim-total-horiz::before{ left:-0.75px; }
+  .dim-row .dim-btn:last-child::after, .dim-total-horiz::after{ right:-0.75px; }
+  .dim-col .dim-btn::before, .dim-col .dim-btn:last-child::after,
+  .dim-total-vert::before, .dim-total-vert::after{
+    transform:none; z-index:2;
+  }
+  /* конечная засечка: после кнопок в разметке идут выносные линии <i>, поэтому :last-child не срабатывает — берём :last-of-type */
+  .dim-row .dim-btn:last-of-type::after, .dim-col .dim-btn:last-of-type::after{
+    content:""; position:absolute; background:#333333; pointer-events:none; z-index:2;
+  }
+  .dim-row .dim-btn:last-of-type::after{ width:1.5px; height:16px; bottom:-8.75px; right:-0.75px; }
+  .dim-col .dim-btn:last-of-type::after{ width:16px; height:1.5px; bottom:-0.75px; right:-8.75px; }
+  .dim-row .dim-btn span, .dim-total-horiz span{
+    position:absolute; left:50%; bottom:-0.75px;
+    transform:translate(-50%, 50%);
+    padding:0 6px; background:var(--bg);
+  }
+  .dim-col .dim-btn span, .dim-total-vert span{
+    position:absolute; right:-0.75px; top:50%;
+    transform:translate(50%, -50%) rotate(180deg);
+    padding:6px 0; background:var(--bg);
+  }
+  .dim-row .dim-btn.dim-only span, .dim-col .dim-btn.dim-only span, .dim-total span{
+    font-size:var(--fs-md); font-weight:500;
+  }
+  .elem-toolbar{
+    display:grid;
+    grid-template-columns:repeat(6, 1fr);
+    background:var(--card);
+    border-bottom:1px solid var(--line);
+  }
+  .tool-btn{
+    background:none;
+    border:none;
+    border-right:1px solid var(--line);
+    border-bottom:1px solid var(--line);
+    color:var(--header);
+    height:48px;
+    display:flex; align-items:center; justify-content:center;
+    cursor:grab;
+    padding:0;
+    touch-action:none;
+    -webkit-user-select:none; user-select:none;
+  }
+  .tool-btn:nth-child(6n){ border-right:none; }
+  .tool-btn:hover{ background:rgba(26,86,219,0.08); }
+  .tool-btn:active{ transform:scale(0.95); cursor:grabbing; }
+  .tool-btn.active{ background:var(--header); color:var(--header-ink); }
+
+  /* «призрак» перетаскиваемого инструмента и подсветка створки-цели */
+  .tool-drag-ghost{
+    position:fixed; left:0; top:0; z-index:9999; pointer-events:none;
+    width:42px; height:42px; margin:-21px 0 0 -21px;
+    display:flex; align-items:center; justify-content:center;
+    background:var(--header); color:var(--header-ink); border-radius:var(--radius-md);
+    box-shadow:0 6px 18px rgba(20,33,61,0.35);
+  }
+  .leaf-drop-target{ fill:rgba(26,86,219,0.22); stroke:var(--header); stroke-width:3; }
+  /* ---- Расчёт стоимости (перенос PriceEstimate / PriceSetting) ---- */
+  .price-table{ display:flex; flex-direction:column; gap:8px; }
+  .price-head, .price-row{
+    display:flex; align-items:center; gap:8px;
+    padding:10px 12px; border:1px solid var(--line); border-radius:var(--radius-md); background:var(--card);
+  }
+  .price-head{ background:none; border:none; padding:0 12px; }
+  .price-head span{ font-size:var(--fs-2xs); color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.3px; }
+  .price-row{ cursor:pointer; }
+  .price-row:hover{ border-color:var(--ink-soft); }
+  .pc-no{ width:26px; flex-shrink:0; font-weight:700; color:var(--header); font-size:var(--fs-sm); }
+  .pc-main{ flex:1; min-width:0; }
+  .pc-name{ font-size:var(--fs-base); font-weight:600; }
+  .pc-sub{ font-size:var(--fs-xs); color:var(--ink-soft); margin-top:2px; }
+  .pc-sum{ font-size:var(--fs-base); font-weight:700; white-space:nowrap; }
+  .price-detail{
+    margin:-2px 0 2px 0; padding:10px 12px;
+    border:1px dashed var(--line); border-radius:var(--radius-md); font-size:var(--fs-xs); color:var(--ink-soft);
+  }
+  .price-detail div{ display:flex; justify-content:space-between; padding:2px 0; }
+  .price-detail b{ color:var(--ink); font-weight:600; }
+  .price-total{
+    margin-top:14px; border-top:1px solid var(--line); padding-top:10px;
+    display:flex; flex-direction:column; gap:6px;
+  }
+  .price-total div{ display:flex; justify-content:space-between; font-size:var(--fs-sm); }
+  .price-total .grand{
+    font-size:var(--fs-lg); font-weight:700; color:var(--ink);
+    border-top:1px solid var(--line); margin-top:6px; padding-top:10px;
+  }
+  .price-total .muted{ color:var(--ink-soft); }
+  /* сгруппированная смета (как в старом проекте) */
+  .est-table{ border:1px solid var(--line); border-radius:var(--radius-md); overflow:hidden; }
+  .est-head, .est-row{
+    display:grid; grid-template-columns:minmax(0,1fr) 62px 30px 84px; gap:6px;
+    align-items:center; padding:8px 10px; font-size:var(--fs-sm);
+  }
+  .est-head{ font-size:var(--fs-2xs); color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.3px; border-bottom:1px solid var(--line); }
+  .est-row.zebra{ background:var(--zebra); }
+  .est-num, .est-sum{ text-align:right; white-space:nowrap; }
+  .est-sum{ font-weight:600; }
+  .est-unit{ color:var(--ink-soft); font-size:var(--fs-xs); }
+  .est-elements{ margin-top:18px; }
+  .est-elements > summary{ cursor:pointer; font-size:var(--fs-sm); font-weight:600; color:var(--header); padding:6px 2px; margin-bottom:8px; }
+  /* форма цен — как экран «Ценовое урегулирование» */
+  .price-group{ margin-bottom:24px; }
+  .price-title{
+    color:var(--header); font-size:var(--fs-md); font-weight:500;
+    padding:0 0 10px 0; border-bottom:1px solid var(--line); margin-bottom:6px;
+  }
+  .price-field{
+    display:flex; align-items:center; gap:14px; padding:8px 0 4px 0;
+  }
+  .price-field label{ width:148px; flex-shrink:0; font-size:var(--fs-base); }
+  .price-field input{
+    flex:1; min-width:0; text-align:left;
+    border:none; border-bottom:1px solid var(--line); border-radius:0;
+    background:none; outline:none; color:var(--ink); font-size:var(--fs-md); padding:3px 2px;
+  }
+  .price-field input:focus{ border-bottom:2px solid var(--header); padding-bottom:2px; }
+
+  .tool-hint{
+    font-size:var(--fs-xs); color:var(--ink-soft);
+    background:#ffffff;
+    padding:8px 14px 10px 14px; text-align:center;
+  }
+  .toast{
+    position:fixed; left:50%; bottom:90px; transform:translateX(-50%);
+    background:rgba(20,33,61,0.92); color:#ffffff; padding:10px 18px; border-radius:var(--radius-md);
+    font-size:var(--fs-base); z-index:10000; pointer-events:none; opacity:0; transition:opacity .2s;
+    max-width:calc(100% - 32px); text-align:center; line-height:1.3;
+  }
+  .toast.show{ opacity:1; }
+
+  /* Меню проекта по долгому нажатию на карточку (главный экран) */
+  #list .project-card{
+    -webkit-user-select:none; user-select:none;
+    -webkit-touch-callout:none;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .pcm-backdrop{
+    position:fixed; inset:0;
+    z-index:25;
+    background:rgba(0,0,0,0.4);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+  }
+  .pcm-backdrop.open{ display:flex; }
+  .pcm-menu{
+    width:100%;
+    max-width:320px;
+    max-height:70vh;
+    overflow-y:auto;
+    background:var(--bg);
+    border-radius:var(--radius-sm);
+    box-shadow:0 8px 28px rgba(0,0,0,0.3);
+    padding:8px 0;
+  }
+  .pcm-item{
+    display:block;
+    width:100%;
+    text-align:left;
+    background:none;
+    border:none;
+    padding:15px 22px;
+    font-family:inherit;
+    font-size:var(--fs-title);
+    color:var(--ink);
+    cursor:pointer;
+  }
+  .pcm-item:hover, .pcm-item:active{ background:var(--card); }
+  .pcm-item.danger{ color:var(--danger); }
+  #projectCanvas .elem-card{
+    -webkit-user-select:none; user-select:none;
+    -webkit-touch-callout:none;
+    -webkit-tap-highlight-color:transparent;
+  }
+
+  /* ===== Печатный вид проекта («Отправить»): страницы A4, по 6 элементов (сетка 2×3) ===== */
+  #printRoot{ display:none; }
+  @page{ size:A4; margin:10mm; }
+  @media print{
+    html, body{ background:#ffffff !important; }
+    body{ display:block !important; min-height:0 !important; }
+    body > *:not(#printRoot){ display:none !important; }
+    #printRoot{
+      display:block; color:#1d1d1d;
+      -webkit-print-color-adjust:exact; print-color-adjust:exact;
+    }
+    .print-page{
+      width:190mm; height:275mm; overflow:hidden;
+      display:flex; flex-direction:column;
+      break-after:page; page-break-after:always;
+    }
+    .print-page:last-child{ break-after:auto; page-break-after:auto; }
+    .print-head{
+      display:flex; justify-content:space-between; align-items:baseline; gap:6mm;
+      border-bottom:0.4mm solid #1d1d1d; padding-bottom:2mm; margin-bottom:4mm;
+      font-size:12pt; font-weight:600;
+    }
+    .print-grid{
+      flex:1; min-height:0;
+      display:grid; grid-template-columns:1fr 1fr; grid-template-rows:repeat(3, minmax(0, 1fr)); gap:4mm;
+    }
+    .print-cell{
+      border:0.3mm solid #c9d0da; border-radius:2mm; padding:3mm;
+      display:flex; flex-direction:column; min-width:0; min-height:0;
+    }
+    .print-draw{ position:relative; flex:1; min-height:0; }
+    .print-draw svg{ position:absolute; inset:0; width:100%; height:100%; }
+    .print-draw svg [stroke="#1d1d1d"]{ stroke:#8c8c8c; stroke-width:1.2px; vector-effect:non-scaling-stroke; }
+    .print-foot{ display:flex; justify-content:space-between; align-items:flex-end; gap:3mm; margin-top:2mm; }
+    .print-num{ font-size:26pt; line-height:1; font-weight:300; color:#555555; }
+    .print-meta{ text-align:right; font-size:9.5pt; line-height:1.35; }
+  }
+  /* ===== Доработка линеек размеров: цвет/жирность чисел, построчные линейки, сетка-фон =====
+     Правила ниже стоят последними в блоке, чтобы гарантированно перекрыть более ранние
+     (в т.ч. .dim-row .dim-btn.dim-only span, .dim-total span у строки 948 и т.п.) */
+  .dim-row .dim-btn span, .dim-col .dim-btn span, .dim-col-right .dim-btn span, .dim-row-per-line .dim-btn span, .dim-col-per-line .dim-btn span{
+    color:var(--dim-color-impost); font-weight:400; font-size:var(--dim-font-impost);
+  }
+  .dim-total-horiz span, .dim-total-vert span{
+    font-weight:400; font-size:var(--dim-font-frame); color:var(--dim-color-frame);
+  }
+  /* линейка справа — зеркало левой (.dim-col): выносная линия и подпись с другой стороны */
+  .dim-col-right{
+    width:20px; flex-shrink:0; margin-left:25px; margin-right:0; position:relative;
+    display:flex; flex-direction:column; gap:0;
+  }
+  .dim-col-right .dim-btn{
+    position:relative;
+    background:none; border:none; border-radius:0;
+    border-left:1.5px solid #333333;
+    width:20px; padding:0 0 0 3px; margin:0 auto 0 0;
+    display:flex; align-items:center; justify-content:flex-start;
+    font-size:var(--fs-sm); line-height:1.15;
+    cursor:pointer;
+  }
+  .dim-col-right .dim-btn::before, .dim-col-right .dim-btn:last-child::after{
+    content:""; position:absolute; width:16px; height:1.5px; background:#333333; left:-8.75px;
+  }
+  .dim-col-right .dim-btn::before{ top:-0.75px; }
+  .dim-col-right .dim-btn:last-child::after{ bottom:-0.75px; }
+  .dim-col-right .dim-btn span{
+    font-weight:400; padding:0;
+    writing-mode:vertical-rl; transform:rotate(180deg);
+    position:absolute; left:-0.75px; top:50%;
+    transform:translate(-50%, -50%) rotate(180deg);
+    padding:6px 0; background:var(--bg);
+  }
+  /* выносные линии к окну (dm-ext-y) у правой колонки должны идти влево (окно слева), а не вправо как у левой */
+  .dim-col-right .dm-ext-y{ right:auto; left:-25px; }
+  /* построчные линейки — свой ряд под каждым горизонтальным делением дерева, между схемой и общей линейкой */
+  .row-dims-container{ display:flex; flex-direction:column; gap:6px; margin:25px 0 0; }
+  .dim-row-per-line{ height:20px; }
+  /* поколоночные линейки высоты — зеркало row-dims-container: свой столбец рядом с каждым найденным
+     вертикальным делением (окно-с-переплётом внутри одной из колонок), между схемой и общей линейкой высоты */
+  .col-dims-container{ display:flex; flex-direction:row; gap:6px; margin:0 0 0 25px; align-self:stretch; }
+  .dim-col-per-line{ width:20px; flex-shrink:0; margin-left:0; margin-right:0; display:flex; flex-direction:column; gap:0; }
+  /* поколоночная линейка высоты (elemColDims) стоит справа от окна, как и dim-col-right, — её выноски
+     тоже должны идти влево к окну, а не вправо в пустоту (иначе это тот же баг, что был у dim-col-right) */
+  .dim-col-per-line .dm-ext-y{ right:auto; left:-25px; }
+  .dim-col-per-line:not(:first-child) .dm-ext-y{ left:-6px; }
+  /* фон под схемой и списком элементов проекта — обычный белый, как везде в приложении (клетка убрана) */
+  .project-canvas, .elem-view-body{
+    background:var(--bg);
+  }
+
+  /* ===== Одинаковые отступы размерных линий от окна со всех сторон (слева / справа / снизу) =====
+     --dim-gap (15px) — расстояние от контура окна до размерной линии. Контур = рама, а если есть подоконник —
+     подоконник (--sill-x / --sill-y — на сколько он выступает за раму по бокам / вниз, в px; ставятся в
+     renderElementView). Выносные линии начинаются в 4px от контура и заходят за размерную линию на 6px. */
+  .elem-view-body{
+    --dim-gap:15px; --sill-x:0px; --sill-y:0px;
+    /* Шрифты размерных чисел — аналог двух Paint из Android (com.iwindoor.a.d.e.j = 120 для рамы,
+       com.iwindoor.a.d.e.k = 90 для импостов; пропорция 4:3). Менять только здесь. */
+    --dim-font-frame:16px;    /* размеры рамы: общая ширина/высота, «окно без деления» (.dim-only), подоконник */
+    --dim-font-impost:12px;   /* размеры импостов: сегменты между импостами (все построчные/поколоночные линейки) */
+    /* Цвета чисел — Paint dVar.i из Android: color = -16777216 (0xFF000000, чёрный). Раздельные переменные,
+       чтобы при необходимости красить раму и импосты по-разному. */
+    --dim-color-frame:#000000;
+    --dim-color-impost:#000000;
+    /* Толщина размерной линии и засечек: k = 0 (импост) → --dim-line-impost, k = 1 (рама) → --dim-line-frame */
+    --dim-line-frame:1.5px;
+    --dim-line-impost:1px;
+    --gap-x:calc(var(--dim-gap) + var(--sill-x));     /* рама → размерная линия по бокам */
+    --gap-y:calc(var(--dim-gap) + var(--sill-y));     /* рама → размерная линия снизу */
+    --dim-pad:calc(var(--dim-gap) - 4px);             /* длина выносной линии до размерной */
+    --dim-gap-w:15px;                                 /* отступ снизу для 500/500/100/400 — равен --dim-gap */
+    --gap-y-w:calc(var(--dim-gap-w) + var(--sill-y));
+  }
+  /* только левая общая линейка высоты; колонки справа (dim-col-per-line) и зеркало (dim-col-right) свои отступы не получают */
+  .dim-total-vert{ margin-right:var(--gap-x); }
+  .dim-col:not(.dim-col-right):not(.dim-col-per-line){ margin-right:var(--gap-x); }
+  /* пустая зеркальная линейка справа (когда у окна есть колонки) не должна занимать место и отнимать ширину у схемы */
+  .dim-col-right:empty{ display:none; }
+  .dim-total-vert .dm-x{ right:calc(-1 * var(--dim-pad)); width:calc(var(--dim-pad) + 6px); }
+  .col-dims-container:empty{ margin-left:0; }
+  .col-dims-container:empty + .dim-col-right{ margin-left:var(--gap-x); }
+  .dim-col-right .dm-ext-y{ right:auto; left:calc(-1 * var(--dim-pad)); width:calc(var(--dim-pad) + 6px); }
+  /* нижняя засечка правой линейки: после кнопки идут выносные <i>, :last-child не срабатывает — ставим засечку на линию, а не вправо */
+  .dim-col-right .dim-btn:last-of-type::after{ content:""; position:absolute; width:16px; height:1.5px; background:#333333; bottom:-0.75px; left:-8.75px; right:auto; z-index:2; }
+  /* режим «колонки справа» (окно делится по высоте): линия — правый край колонки шириной 20px */
+  .col-dims-container:not(:empty){ margin-left:calc(var(--gap-x) - 20px); }
+  .dim-col-per-line:first-child .dm-ext-y{ left:calc(24px - var(--dim-gap)); width:calc(var(--dim-gap) + 2px); }
+  .row-dims-container{ margin-top:calc(var(--gap-y-w) - 20px); }
+  .dm-ext-x{ top:calc(24px - var(--dim-gap-w)); }
+  .dim-row-per-line:not(:first-child) .dm-ext-x{ top:-6px; }
+  #elemRowDims:empty + .elem-bottom-row .elem-width-wrap::before,
+  #elemRowDims:empty + .elem-bottom-row .elem-width-wrap::after{ top:calc(24px - var(--dim-gap-w)); }
+  /* размеры рамы (общие 1500 / 1200 слева и снизу, «окно без деления») — один цвет, размер и жирность */
+  /* Стиль чисел определяется ТИПОМ размера (data-dim-kind, ставится в JS: DIM_KIND / dimBtnHtml и в разметке totals),
+     а не классами .dim-only / .dim-total. Хотите по-разному стилизовать раму и импосты — правьте только два блока ниже. */
+  /* k по умолчанию берётся из типа; JS может переопределить его inline (style="--dim-k:…", dimBtnHtml(..., {k})). */
+  .elem-view-body [data-dim-kind="frameDim"]{   --dim-k:1; --dim-color:var(--dim-color-frame); }
+  .elem-view-body [data-dim-kind="mullionDim"]{ --dim-k:0; --dim-color:var(--dim-color-impost); }
+  /* от k зависят размер текста, вес и толщина линии (объявлено на том же элементе, что и --dim-k) */
+  .elem-view-body [data-dim-kind]{
+    --dim-font:calc(var(--dim-font-impost) + var(--dim-k) * (var(--dim-font-frame) - var(--dim-font-impost)));
+    --dim-line:calc(var(--dim-line-impost) + var(--dim-k) * (var(--dim-line-frame) - var(--dim-line-impost)));
+    --dim-weight:400;
+  }
+  .elem-view-body .dim-btn[data-dim-kind] span, .elem-view-body .dim-total[data-dim-kind] span{
+    font-size:var(--dim-font); color:var(--dim-color); font-weight:var(--dim-weight);
+  }
+  /* --- геометрия линии зависит от толщины (--dim-line): линия, засечки и подпись центрируются на ней --- */
+  .dim-row .dim-btn, .dim-total-horiz{ border-bottom-width:var(--dim-line, 1.5px); }
+  .dim-col .dim-btn, .dim-total-vert{ border-right-width:var(--dim-line, 1.5px); }
+  .dim-col-right .dim-btn{ border-left-width:var(--dim-line, 1.5px); }
+  .dim-row .dim-btn::before, .dim-row .dim-btn::after, .dim-total-horiz::before, .dim-total-horiz::after{
+    width:var(--dim-line, 1.5px); bottom:calc(-8px - var(--dim-line, 1.5px) / 2);
+  }
+  .dim-row .dim-btn::before, .dim-total-horiz::before{ left:calc(var(--dim-line, 1.5px) / -2); }
+  .dim-row .dim-btn::after, .dim-total-horiz::after{ right:calc(var(--dim-line, 1.5px) / -2); }
+  .dim-row .dim-btn span, .dim-total-horiz span{ bottom:calc(var(--dim-line, 1.5px) / -2); }
+  .dim-col .dim-btn::before, .dim-col .dim-btn::after, .dim-total-vert::before, .dim-total-vert::after{
+    height:var(--dim-line, 1.5px); right:calc(-8px - var(--dim-line, 1.5px) / 2);
+  }
+  .dim-col .dim-btn::before, .dim-total-vert::before{ top:calc(var(--dim-line, 1.5px) / -2); }
+  .dim-col .dim-btn::after, .dim-total-vert::after{ bottom:calc(var(--dim-line, 1.5px) / -2); }
+  .dim-col .dim-btn span, .dim-total-vert span{ right:calc(var(--dim-line, 1.5px) / -2); }
+  .dim-col-right .dim-btn::before, .dim-col-right .dim-btn::after{
+    height:var(--dim-line, 1.5px); left:calc(-8px - var(--dim-line, 1.5px) / 2); right:auto;
+  }
+  .dim-col-right .dim-btn::before{ top:calc(var(--dim-line, 1.5px) / -2); }
+  .dim-col-right .dim-btn::after{ bottom:calc(var(--dim-line, 1.5px) / -2); }
+  .dim-col-right .dim-btn span{ left:calc(var(--dim-line, 1.5px) / -2); }
+
+  /* --- флаг g («обратная сторона»): размеры оси рисуются с противоположной стороны окна ---
+     Сторона задаётся атрибутами на .elem-view-body (data-dim-g-width / data-dim-g-height, ставит applyDimSides).
+     Готовая раскладка «снизу / слева» зеркалится (scaleY / scaleX), подписи отзеркаливаются обратно, чтобы текст не переворачивался. */
+  /* ширина: блок размеров (линейка сегментов + общий размер) переезжает над окном */
+  .elem-view-body[data-dim-g-width="1"] .elem-bottom-row{ order:-1; margin-top:auto; margin-bottom:calc(var(--dim-gap) - 20px); }
+  .elem-view-body[data-dim-g-width="1"] .elem-diagram-row{ margin-top:0; margin-bottom:auto; }
+  .elem-view-body[data-dim-g-width="1"] .elem-width-wrap{ transform:scaleY(-1); }
+  .elem-view-body[data-dim-g-width="1"] .elem-width-wrap span{ transform:translate(-50%, 50%) scaleY(-1); }
+  /* высота: общий размер переезжает вправо от окна */
+  .elem-view-body[data-dim-g-height="1"] #elemHeightTotal{ order:9; margin-right:0; margin-left:var(--gap-x); transform:scaleX(-1); }
+  .elem-view-body[data-dim-g-height="1"] #elemHeightTotal span{ transform:translate(50%, -50%) rotate(180deg) scaleX(-1); }
+  /* 3D-вид элемента */
+  .v3d-stage{ flex:1; min-height:0; position:relative;
+    background:radial-gradient(circle at 50% 42%, var(--bg) 0%, var(--card) 100%); }
+  #v3dCanvas{ position:absolute; inset:0; width:100%; height:100%; display:block; touch-action:none; cursor:grab; }
+  #v3dCanvas:active{ cursor:grabbing; }
+  .v3d-hint{ text-align:center; font-size:var(--fs-2xs, 11px); opacity:.6; padding:6px 16px 0; }
+  .v3d-actions{ display:flex; gap:10px; padding:10px 16px calc(14px + env(safe-area-inset-bottom)); }
+  .v3d-actions .btn{ flex:1; }
+  /* переход между элементами проекта на экране элемента */
+  .elem-step{ display:flex; align-items:center; justify-content:center; gap:14px; padding:6px 16px calc(10px + env(safe-area-inset-bottom)); color:var(--ink-soft); font-size:var(--fs-sm); }
+  .elem-step-btn{ width:44px; height:44px; border-radius:50%; border:1px solid var(--line); background:var(--bg); color:var(--ink); display:flex; align-items:center; justify-content:center; cursor:pointer; }
+  .elem-step-btn:active{ background:var(--card); }
+  /* подсказка «цены не заданы» на экране расчёта */
+  .price-hint{ background:var(--chip-warn-bg); color:var(--chip-warn-ink); border-radius:var(--radius-md); padding:12px 14px; margin:4px 0 14px; font-size:var(--fs-sm); display:flex; flex-direction:column; gap:10px; }
+  .price-hint .btn{ align-self:flex-start; flex:none; padding:10px 18px; }
+  /* «+ Новый проект» скрыт на вкладках (класс ставит initTabFabHide) */
+  body.tab-open .accent-btn{ display:none; }
+  /* жест «назад» от края: белый кружок со стрелкой, при готовности — голубой ореол (как в Android) */
+  .back-bubble{ position:fixed; top:0; left:-64px; width:64px; height:64px; z-index:60; pointer-events:none;
+    opacity:0; transition:opacity .15s; --bb-p:0; }
+  .back-bubble.show{ opacity:1; }
+  .back-bubble .bb-halo{ position:absolute; inset:0; border-radius:50%; background:var(--header); opacity:.25;
+    transform:scale(.55); transition:transform .18s ease; }
+  .back-bubble.ready .bb-halo{ transform:scale(1); }
+  .back-bubble .bb-dot{ position:absolute; left:12px; top:12px; width:40px; height:40px; border-radius:50%; background:var(--bg);
+    color:var(--header); display:flex; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(0,0,0,.22);
+    transform:scale(calc(.8 + var(--bb-p) * .2)); transition:transform .12s; }
+  .back-bubble .bb-dot svg{ opacity:calc(.35 + var(--bb-p) * .65); }
+
+  /* ===== Стёкла и сетки, раскрой стекла ===== */
+  .gl-head, .gl-row{ grid-template-columns:minmax(0,1fr) 54px 76px; }
+  .gl-row .est-name{ font-weight:600; }
+  .gl-swatch{ display:inline-block; width:16px; height:16px; vertical-align:-3px; margin-right:6px; }
+  .glass-list .est-table{ margin-bottom:14px; }
+  .gc-sheet-wrap{ margin-bottom:12px; }
+  .gc-sheet{ display:block; width:100%; height:auto; border-radius:6px; }
+  .gc-sheet text{ font-family:inherit; font-weight:600; }
+  .cut-failed .cut-warn:last-child{ margin-bottom:0; }
+
+  /* ===== Отходы профиля в цене ===== */
+  .waste-opt{ display:flex; align-items:flex-start; gap:10px; padding:8px 0; cursor:pointer; border-bottom:1px solid var(--line); }
+  .waste-opt input{ margin-top:3px; flex-shrink:0; }
+  .waste-opt b{ display:block; font-weight:600; font-size:var(--fs-base); }
+  .waste-opt small{ display:block; color:var(--ink-soft); font-size:var(--fs-xs); margin-top:2px; }
+  .price-note{ font-size:var(--fs-xs); color:var(--ink-soft); margin:10px 0 4px; }
+
+  /* ===== Язык и состав PDF ===== */
+  .pdf-opt-langs{ display:flex; flex-direction:column; gap:10px; margin-bottom:14px; }
+  .pdf-opt-check{ display:flex; align-items:center; gap:10px; font-size:var(--fs-base); margin:0 0 12px; cursor:pointer; }
+  .sheet .pdf-opt-check input{ width:20px; height:20px; flex:0 0 auto; margin:0; padding:0; }

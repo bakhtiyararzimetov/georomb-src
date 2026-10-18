@@ -1,0 +1,254 @@
+// Экспорт / импорт проектов (резервная копия). Формат файла прежний ("window-projects-backup", version 1),
+// поэтому старые бэкапы импортируются, а новые открываются старой версией приложения.
+// Импортируемому файлу не доверяем: каждое поле проверяется и пересобирается.
+import { S } from '../state.ts';
+import type { Divider, OpeningType, PriceSettings, Project, TreeNode, WinElement, Edge } from '../types.ts';
+import { $, $input, escapeHtml, showToast } from '../ui/dom.ts';
+import { GLASS_TYPES } from '../data/glass.ts';
+import { SLIDING_TEMPLATES } from '../data/profiles.ts';
+import { PRICE_DEFAULTS, SILL_WIDTHS, calcElement, clonePriceDefaults, isWasteMode, persistPriceSettings } from '../model/pricing.ts';
+import { deliverFile } from '../platform/share.ts';
+import { saveProjects, withoutHistory } from '../storage.ts';
+import { rerenderList } from './projects.ts';
+import { catalogSaveOff } from './catalog.ts';
+import { WH_NO_COLOR, WarehouseMatcher, saveWarehouse, whNormalizeRemnant, wh } from './warehouse.ts';
+import { cuttingSettingsAreUntouched, normalizeCuttingSettings, saveCuttingSettings } from './cutting.ts';
+
+const BACKUP_FORMAT = 'window-projects-backup';
+
+// ids — необязательный список проектов; без него — все
+function buildBackup(ids?: number[]) {
+  const src = Array.isArray(ids) ? S.projects.filter(p => ids.includes(p.id)) : S.projects;
+  const clean = JSON.parse(JSON.stringify(src, withoutHistory)) as Project[];
+  return { format:BACKUP_FORMAT, version:1, exportedAt:new Date().toISOString(), projects:clean, priceSettings:S.prices,
+           catalogOff:[...S.catalogOff],
+           warehouse:{ kerfThickness:wh.matcher.kerfThickness, remnants:S.warehouseRemnants },
+           cuttingSettings:S.cutting };
+}
+async function exportProjects(ids?: number[]): Promise<void> {
+  const n = Array.isArray(ids) ? ids.length : S.projects.length;
+  if(n === 0){ showToast('Нет проектов для экспорта'); return; }
+  try{
+    const blob = new Blob([JSON.stringify(buildBackup(ids), null, 1)], { type:'application/json' });
+    const d = new Date(), z = (x: number) => String(x).padStart(2, '0');
+    const name = 'projects-' + d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()) + '.json';
+    const how = await deliverFile(blob, name, 'Проекты');
+    if(how === 'download') showToast('Файл сохранён: ' + name);
+  }catch(err){
+    console.error(err);
+    showToast('Не удалось сохранить файл');
+  }
+}
+
+// ===== Выбор проектов перед экспортом =====
+let exportSelected = new Set<number>();
+export function openExportPicker(): void {
+  if(S.projects.length === 0){ showToast('Нет проектов для экспорта'); return; }
+  exportSelected = new Set();
+  renderExportPicker();
+  $('exportPickBackdrop').classList.add('open');
+}
+function renderExportPicker(): void {
+  $('exportPickList').innerHTML = S.projects.map(p => `
+      <button class="color-opt${exportSelected.has(p.id) ? ' selected' : ''}" onclick="toggleExportSelect(${p.id})">
+        <span class="avatar" style="width:34px;height:34px;font-size:var(--fs-sm)">${escapeHtml(String(p.number != null ? p.number : p.id))}</span>
+        <span>${escapeHtml(p.name)}</span>
+        <span class="check">✓</span>
+      </button>`).join('');
+  const confirmBtn = $('exportPickConfirm') as HTMLButtonElement;
+  confirmBtn.textContent = 'Экспортировать (' + exportSelected.size + ')';
+  confirmBtn.disabled = exportSelected.size === 0;
+  $('exportPickAllBtn').textContent = (exportSelected.size === S.projects.length) ? 'Снять все' : 'Выбрать все';
+}
+export function toggleExportSelect(id: number): void {
+  if(exportSelected.has(id)) exportSelected.delete(id); else exportSelected.add(id);
+  renderExportPicker();
+}
+export function exportPickToggleAll(): void {
+  exportSelected = (exportSelected.size === S.projects.length) ? new Set() : new Set(S.projects.map(p => p.id));
+  renderExportPicker();
+}
+export function closeExportPicker(): void { $('exportPickBackdrop').classList.remove('open'); }
+export async function confirmExportSelected(): Promise<void> {
+  if(exportSelected.size === 0) return;
+  const ids = [...exportSelected];
+  closeExportPicker();
+  await exportProjects(ids);
+}
+
+// --- проверка и пересборка данных файла ---
+const IMPORT_MAX_PROJECTS = 500, IMPORT_MAX_ELEMENTS = 500, IMPORT_MAX_NODES = 300, IMPORT_MAX_DEPTH = 12;
+const safeText = (v: unknown, max: number, def?: string): string => {
+  const t = (typeof v === 'string' || typeof v === 'number') ? String(v).replace(/[<>&"'`]/g, '').trim().slice(0, max) : '';
+  return t || (def || '');
+};
+const safeNum = (v: unknown, min: number, max: number): number | null => { const n = Number(v); return (isFinite(n) && n >= min && n <= max) ? n : null; };
+type Raw = Record<string, unknown>;
+
+function cleanNode(n: unknown, depth: number, counter: { n: number }): TreeNode {
+  const src = n as Raw | null;
+  if(!src || typeof src !== 'object' || depth > IMPORT_MAX_DEPTH || ++counter.n > IMPORT_MAX_NODES) throw new Error('bad node');
+  const out: TreeNode = { nid: S.nextNodeId++, kind:'leaf' };
+  if(src.kind === 'branch'){
+    const children = src.children;
+    if(!Array.isArray(children) || children.length < 2 || children.length > 8) throw new Error('bad branch');
+    out.kind = 'branch';
+    out.dir = (src.dir === 'h') ? 'h' : 'v';
+    out.children = children.map(c => cleanNode(c, depth + 1, counter));
+    const sizes = src.sizes;
+    out.sizes = (Array.isArray(sizes) && sizes.length === children.length && sizes.every(x => safeNum(x, 0.001, 100000) !== null))
+                ? sizes.map(Number) : null;
+  }else{
+    out.fill = (src.fill === 'panelV' || src.fill === 'panelH') ? src.fill : 'glass';
+    out.opening = null;
+    const op = src.opening as Raw | null | undefined;
+    if(op && typeof op === 'object'){
+      const t = op.type as OpeningType;
+      if(['Turn','Tilt','TiltTurn','Door','Sliding','FixSliding'].includes(t)){
+        out.opening = { type:t };
+        if(['left','right','bottom'].includes(op.hinge as string)) out.opening.hinge = op.hinge as Edge;
+      }
+    }
+    if(src.inner) out.inner = cleanNode(src.inner, depth + 1, counter);
+  }
+  if(Array.isArray(src.dividers)) out.dividers = src.dividers.filter((x): x is Divider => x === 'cap' || x === 'adapter');
+  return out;
+}
+function cleanElement(e: unknown, project: Project): WinElement | null {
+  const src = e as Raw | null;
+  if(!src || typeof src !== 'object') return null;
+  const type = (src.type === 'sliding' || src.type === 'casement' || src.type === 'sill') ? src.type : null;
+  const width = safeNum(src.width, 1, 100000), height = safeNum(src.height, 1, 100000), qty = safeNum(src.qty, 0.001, 100000);
+  if(!type || width === null || height === null || qty === null) return null;
+  const el: WinElement = { id: S.nextElemId++, type, width, height, qty, color: null, history: [], redo: [] };
+  const col = safeText(src.color, 40);
+  if(col) el.color = col;
+  const gl = safeText(src.glass, 20);
+  if(gl && GLASS_TYPES.some(g => g.code === gl)) el.glass = gl;
+  if(typeof src.slidingTemplate === 'string' && SLIDING_TEMPLATES[src.slidingTemplate]) el.slidingTemplate = src.slidingTemplate;
+  if(src.net === true) el.net = true;
+  // подоконник под окном (длина в метрах, ширина полки в см)
+  if(src.sill === true){
+    const len = safeNum(src.sillLen, 0.001, 100), w = safeNum(src.sillWidth, 1, 200);
+    if(len !== null){ el.sill = true; el.sillLen = len; el.sillWidth = (w !== null && SILL_WIDTHS.includes(w)) ? w : 20; }
+  }
+  try{
+    if(src.root) el.root = cleanNode(src.root, 0, { n:0 });
+    calcElement(el, project);                 // расчёт должен пройти без ошибок — иначе элемент не берём
+  }catch{ return null; }
+  return el;
+}
+function cleanPrices(src: unknown): PriceSettings {
+  const out = clonePriceDefaults();
+  const s = src as Partial<PriceSettings> | null;
+  if(!s || typeof s !== 'object') return out;
+  const n = (v: unknown) => { const x = Number(v); return (isFinite(x) && x >= 0 && x <= 1e9) ? x : 0; };
+  (['pvc','alu'] as const).forEach(m => {
+    (Object.keys(out.profile[m]) as (keyof PriceSettings['profile']['pvc'])[]).forEach(k => { out.profile[m][k] = n(s.profile && s.profile[m] && s.profile[m][k]); });
+  });
+  (Object.keys(out.accessory) as (keyof PriceSettings['accessory'])[]).forEach(k => { out.accessory[k] = n(s.accessory && s.accessory[k]); });
+  (['pvc','alu'] as const).forEach(k => { out.panel[k] = n(s.panel && s.panel[k]); });
+  out.glass = n(s.glass);
+  if(s.sill && typeof s.sill === 'object') SILL_WIDTHS.forEach(w => { out.sill[w] = n((s.sill as Record<number, unknown>)[w]); });
+  out.reinf = n(s.reinf);
+  out.net = n(s.net);
+  if(s.waste && typeof s.waste === 'object'){
+    if(isWasteMode(s.waste.mode)) out.waste.mode = s.waste.mode;
+    out.waste.percent = Math.min(100, n(s.waste.percent));
+  }
+  out.tax = Math.min(100, n(s.tax));
+  out.currency = safeText(s.currency, 8, PRICE_DEFAULTS.currency);
+  out.decimals = Math.min(4, Math.floor(n(s.decimals)));
+  return out;
+}
+function pricesAreUntouched(): boolean {
+  const s = S.prices, zero = (o: object) => Object.values(o).every(v => !v);
+  return zero(s.profile.pvc) && zero(s.profile.alu) && zero(s.accessory) && zero(s.panel) && !s.glass && !s.tax
+      && !s.reinf && !s.net;
+}
+
+export function importProjects(): void { $input('importFile').click(); }
+export async function importProjectsFromFile(input: HTMLInputElement): Promise<void> {
+  const file = input.files && input.files[0];
+  input.value = '';                                     // чтобы тот же файл можно было выбрать снова
+  if(!file) return;
+  try{
+    if(file.size > 30 * 1024 * 1024){ showToast('Файл слишком большой'); return; }
+    const data = JSON.parse(await file.text()) as Raw | null;
+    if(!data || data.format !== BACKUP_FORMAT || !Array.isArray(data.projects)){ showToast('Это не файл резервной копии проектов'); return; }
+
+    const used = new Set(S.projects.map(p => Number(p.number)));
+    let added = 0, skipped = 0;
+    const fresh: Project[] = [];
+    (data.projects as unknown[]).slice(0, IMPORT_MAX_PROJECTS).forEach(raw => {
+      const src = raw as Raw | null;
+      if(!src || typeof src !== 'object') return;
+      let number = Number(src.number);
+      if(!(Number.isInteger(number) && number > 0 && number < 1e9) || used.has(number)) number = Math.max(0, ...used) + 1;
+      used.add(number);
+      const project: Project = {
+        id: S.nextId++, number,
+        name: safeText(src.name, 200, 'Проект ' + number),
+        date: safeText(src.date, 40, 'Сегодня'),
+        type: (src.type === 'alu') ? 'alu' : 'pvc',
+        phone: safeText(src.phone, 60), address: safeText(src.address, 200), description: safeText(src.description, 1000),
+        elements: []
+      };
+      const dc = safeText(src.defaultColor, 40);
+      if(dc) project.defaultColor = dc;
+      const dg = safeText(src.defaultGlass, 40);
+      if(dg && GLASS_TYPES.some(g => g.code === dg)) project.defaultGlass = dg;
+      (Array.isArray(src.elements) ? src.elements.slice(0, IMPORT_MAX_ELEMENTS) : []).forEach(e => {
+        const el = cleanElement(e, project);
+        if(el) project.elements.push(el); else skipped++;
+      });
+      fresh.push(project);
+      added++;
+    });
+    if(added === 0){ showToast('В файле нет проектов'); return; }
+    S.projects = fresh.concat(S.projects);               // импортированные — сверху
+    let msg = '';
+    if(data.priceSettings && pricesAreUntouched()){
+      S.prices = cleanPrices(data.priceSettings);
+      persistPriceSettings();
+      msg = ' Цены загружены.';
+    }
+    // отключённые цвета — только если на этом устройстве ничего ещё не отключали
+    if(Array.isArray(data.catalogOff) && S.catalogOff.size === 0){
+      const off = data.catalogOff.filter((x): x is string => typeof x === 'string').slice(0, 2000);
+      if(off.length){ S.catalogOff = new Set(off); catalogSaveOff(); }
+    }
+    // склад — только если на этом устройстве он ещё пуст
+    const whData = data.warehouse as Raw | undefined;
+    if(whData && typeof whData === 'object' && Array.isArray(whData.remnants) && S.warehouseRemnants.length === 0){
+      const kerf = Number(whData.kerfThickness) > 0 ? Number(whData.kerfThickness) : 5;
+      const cleanRemnants = (whData.remnants as unknown[]).slice(0, 2000).flatMap(raw => {
+        const r = raw as Raw | null;
+        if(!r || typeof r !== 'object') return [];
+        const color = safeText(r.color, 60) || WH_NO_COLOR;
+        const lengthMm = safeNum(r.lengthMm, 1, 100000), qty = safeNum(r.qty, 1, 100000);
+        if(lengthMm === null || qty === null) return [];
+        return [whNormalizeRemnant({ id: S.whNextId++, material: r.material === 'alu' ? 'alu' : 'pvc', role: String(r.role || ''), color,
+                                     lengthMm: Math.round(lengthMm), qty: Math.round(qty) })];
+      });
+      if(cleanRemnants.length){
+        S.warehouseRemnants = cleanRemnants;
+        wh.matcher = new WarehouseMatcher(kerf);
+        saveWarehouse();
+        msg += ' Склад загружен.';
+      }
+    }
+    // настройки раскроя — только если ещё не менялись
+    if(data.cuttingSettings && typeof data.cuttingSettings === 'object' && cuttingSettingsAreUntouched()){
+      S.cutting = normalizeCuttingSettings(data.cuttingSettings);
+      saveCuttingSettings(S.cutting);
+      msg += ' Настройки раскроя загружены.';
+    }
+    saveProjects();
+    rerenderList();
+    showToast('Импортировано проектов: ' + added + (skipped ? ' (пропущено элементов: ' + skipped + ')' : '') + '.' + msg);
+  }catch(err){
+    console.error(err);
+    showToast('Не удалось прочитать файл');
+  }
+}

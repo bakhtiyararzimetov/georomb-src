@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
+<title>Проекты</title>
+</head>
+<body>
+
+<div class="phone">
+  <header>
+    <h1>Мои проекты</h1>
+  </header>
+
+  <div class="search-wrap">
+    <div class="search-box">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <input id="searchInput" type="text" placeholder="Искать" oninput="onSearch()">
+      <button class="clear-btn" id="clearBtn" onclick="clearSearch()" aria-label="Очистить">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <main id="list"></main>
+
+  <button class="accent-btn" aria-label="Новый проект" onclick="openNewProject()">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+  </button>
+
+  <nav class="bottom">
+    <button class="nav-item active" id="navProjects" onclick="closeSettings()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 11l8-7 8 7v9a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9z" stroke="currentColor" stroke-width="1.8"/></svg>
+      Проекты
+    </button>
+    <button class="nav-item" id="navCutting" onclick="openCutting()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M6 6L18 18M6 18L18 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="6" cy="6" r="2.2" stroke="currentColor" stroke-width="1.6"/><circle cx="6" cy="18" r="2.2" stroke="currentColor" stroke-width="1.6"/></svg>
+      Раскрой
+    </button>
+    <button class="nav-item" id="navWarehouse" onclick="openWarehouse()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 9l9-6 9 6v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9z" stroke="currentColor" stroke-width="1.8"/><path d="M8 20v-7h8v7" stroke="currentColor" stroke-width="1.8"/></svg>
+      Склад
+    </button>
+    <button class="nav-item" id="navCatalog" onclick="openCatalog()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.8"/><rect x="14" y="4" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.8"/><rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.8"/><rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.8"/></svg>
+      Каталог
+    </button>
+    <button class="nav-item" id="navSettings" onclick="openSettings()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1z" stroke="currentColor" stroke-width="1.5"/></svg>
+      Настройки
+    </button>
+  </nav>
+</div>
+
+<div class="screen" id="newProjectScreen">
+  <div class="modal-topbar">
+    <button class="topbar-btn muted" onclick="closeNewProject()">Отменить</button>
+    <span class="topbar-title" id="projectFormTitle">Новый проект</span>
+    <button class="topbar-btn accent" onclick="saveProjectForm()">OK</button>
+  </div>
+  <div class="form-body">
+    <div class="form-row">
+      <div class="form-label">Тип</div>
+      <div class="radio-group">
+        <label class="radio-opt">
+          <input type="radio" name="projType" value="pvc" checked>
+          <span class="radio-dot"></span>
+          НПВХ
+        </label>
+        <label class="radio-opt">
+          <input type="radio" name="projType" value="alu">
+          <span class="radio-dot"></span>
+          Алюминий
+        </label>
+      </div>
+    </div>
+    <div class="form-row inline">
+      <div class="form-label">Номер проекта</div>
+      <input class="form-input" id="projectNumber" type="text" inputmode="numeric">
+    </div>
+    <div class="form-row inline">
+      <div class="form-label">Наименование<br>проекта</div>
+      <div class="form-input-wrap">
+        <input class="form-input" id="newProjectName" type="text">
+        <span class="chevron">⌄</span>
+      </div>
+    </div>
+    <div class="form-row inline">
+      <div class="form-label">Тел</div>
+      <input class="form-input" id="projectPhone" type="tel" inputmode="tel">
+    </div>
+    <div class="form-row inline">
+      <div class="form-label">Адрес</div>
+      <input class="form-input" id="projectAddress" type="text">
+    </div>
+    <div class="form-row inline">
+      <div class="form-label">Описание</div>
+      <textarea class="form-input" id="projectDescription" rows="2"></textarea>
+    </div>
+  </div>
+</div>
+
+<div class="screen" id="settingsScreen">
+  <header>
+    <button class="icon-btn" aria-label="Назад" onclick="closeSettings()">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <h1>Настройки</h1>
+    <div class="header-actions spacer"></div>
+  </header>
+  <main class="screen-body">
+    <div class="menu-list">
+      <div class="menu-row" onclick="openPriceSetting()">
+        <span class="menu-ico">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4.5" y="3" width="15" height="18" rx="2" stroke="currentColor" stroke-width="1.8"/><rect x="7.5" y="6" width="9" height="3.6" rx="1" stroke="currentColor" stroke-width="1.5"/><circle cx="8.6" cy="13.4" r="1.1" fill="currentColor"/><circle cx="12" cy="13.4" r="1.1" fill="currentColor"/><circle cx="15.4" cy="13.4" r="1.1" fill="currentColor"/><circle cx="8.6" cy="17.2" r="1.1" fill="currentColor"/><circle cx="12" cy="17.2" r="1.1" fill="currentColor"/><circle cx="15.4" cy="17.2" r="1.1" fill="currentColor"/></svg>
+        </span>
+        <span class="menu-txt">
+          <span class="menu-title">Ценовое урегулирование</span>
+          <span class="menu-sub">Цены профилей, аксессуаров, стекла и налог</span>
+        </span>
+        <svg class="menu-chev" width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="menu-row" onclick="openColorSetting()">
+        <span class="menu-ico">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.5c-4.7 0-8.5 3.5-8.5 8 0 4.2 3.3 7 6.5 7h1.4c1 0 1.6.9 1.3 1.8-.2.6.2 1.2.9 1.2 4.3 0 6.9-3.5 6.9-7.5 0-6-4.4-10.5-8.5-10.5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="8" cy="11" r="1.2" fill="currentColor"/><circle cx="11.5" cy="7.6" r="1.2" fill="currentColor"/><circle cx="16" cy="9" r="1.2" fill="currentColor"/></svg>
+        </span>
+        <span class="menu-txt">
+          <span class="menu-title">Цвета</span>
+          <span class="menu-sub">Включить и отключить цвета</span>
+        </span>
+        <svg class="menu-chev" width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="menu-row" onclick="addExampleProject()">
+        <span class="menu-ico">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M12 4v16M4 12h16" stroke="currentColor" stroke-width="1.5"/></svg>
+        </span>
+        <span class="menu-txt">
+          <span class="menu-title">Добавить примеры</span>
+          <span class="menu-sub">Проект с готовыми окнами и дверями</span>
+        </span>
+        <svg class="menu-chev" width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="menu-row" onclick="openExportPicker()">
+        <span class="menu-ico">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 15V4M8 8l4-4 4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 14v4.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </span>
+        <span class="menu-txt">
+          <span class="menu-title">Экспорт проектов</span>
+          <span class="menu-sub">Сохранить все проекты и цены в файл</span>
+        </span>
+        <svg class="menu-chev" width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="menu-row" onclick="importProjects()">
+        <span class="menu-ico">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 4v11M8 11l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 14v4.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </span>
+        <span class="menu-txt">
+          <span class="menu-title">Импорт проектов</span>
+          <span class="menu-sub">Загрузить проекты из файла</span>
+        </span>
+        <svg class="menu-chev" width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="menu-row" onclick="openAbout()">
+        <span class="menu-ico">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 5.5h14a1.5 1.5 0 0 1 1.5 1.5v8a1.5 1.5 0 0 1-1.5 1.5H10l-4 3.5V16.5H5A1.5 1.5 0 0 1 3.5 15V7A1.5 1.5 0 0 1 5 5.5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8 10h8M8 13h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        </span>
+        <span class="menu-txt">
+          <span class="menu-title">О приложении</span>
+          <span class="menu-sub" id="aboutRowSub">Ошибки, идеи и контакты</span>
+        </span>
+        <svg class="menu-chev" width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <input type="file" id="importFile" accept=".json,application/json" style="display:none" onchange="importProjectsFromFile(this)">
+    </div>
+  </main>
+</div>
+
+<div class="sheet-backdrop" id="aboutBackdrop" onclick="if(event.target === this) closeAbout()">
+  <div class="sheet">
+    <h2>О приложении</h2>
+    <div class="about-ver" id="aboutVer"></div>
+    <p class="about-text">Нашли ошибку или знаете, как сделать приложение лучше? Напишите нам. Мы будем рады рассмотреть любые предложения и пожелания.</p>
+    <div class="about-sub">Наши контакты</div>
+    <div class="about-links" style="margin-bottom:14px">
+      <a class="about-link" id="aboutTg" target="_blank" rel="noopener" aria-label="Telegram"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="#229ED9"/><path fill="#fff" d="M17.6 7.4 5.9 11.9c-.8.3-.8.8-.1 1l3 .9 1.1 3.4c.1.4.3.5.6.5.3 0 .4-.1.6-.3l1.5-1.5 3 2.2c.5.3.9.1 1.1-.5l2-9.4c.2-.8-.3-1.2-1-.9z"/></svg><span>Telegram</span></a>
+      <a class="about-link" id="aboutWa" target="_blank" rel="noopener" aria-label="WhatsApp"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="#25D366"/><path d="M12 5.5a6.5 6.5 0 0 0-5.6 9.8l-.9 3.2 3.3-.9A6.5 6.5 0 1 0 12 5.5z" fill="none" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/><path fill="#fff" d="M9.7 9.2c.2-.3.6-.3.8 0l.6 1.1c.1.2.1.4-.1.6l-.4.5c.5 1 1.3 1.7 2.3 2.2l.5-.5c.2-.2.4-.2.6-.1l1.1.6c.3.2.3.6.1.8-.5.7-1.3.9-2.1.6-2-.7-3.5-2.2-4.2-4.2-.2-.6 0-1.2.5-1.6z"/></svg><span>WhatsApp</span></a>
+    </div>
+    <button class="btn" style="width:100%" onclick="closeAbout()">Закрыть</button>
+  </div>
+</div>
+
+<div class="sheet-backdrop" id="exportPickBackdrop" onclick="if(event.target === this) closeExportPicker()">
+  <div class="sheet">
+    <h2>Какие проекты экспортировать?</h2>
+    <button class="btn" style="width:100%; margin-bottom:10px" id="exportPickAllBtn" onclick="exportPickToggleAll()">Снять все</button>
+    <div id="exportPickList" style="max-height:45vh; overflow-y:auto; margin-bottom:14px"></div>
+    <div class="sheet-actions">
+      <button class="btn" onclick="closeExportPicker()">Отменить</button>
+      <button class="btn primary" id="exportPickConfirm" onclick="confirmExportSelected()">Экспортировать</button>
+    </div>
+  </div>
+</div>
+
+<div class="screen" id="catalogScreen">
+  <header>
+    <button class="icon-btn" aria-label="Назад" onclick="closeCatalog()">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <h1>Каталог</h1>
+    <div class="header-actions">
+      <button class="icon-btn" aria-label="Поделиться" title="Поделиться" onclick="shareCatalog()">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none"><circle cx="18" cy="5" r="3" stroke="currentColor" stroke-width="1.8"/><circle cx="6" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/><circle cx="18" cy="19" r="3" stroke="currentColor" stroke-width="1.8"/><path d="M8.6 10.5l6.8-4M8.6 13.5l6.8 4" stroke="currentColor" stroke-width="1.8"/></svg>
+      </button>
+    </div>
+  </header>
+  <div class="cc-bar">
+    <button class="cc-seg on" id="ccSegPvc" onclick="setCatalogMat('pvc')">ПВХ</button>
+    <button class="cc-seg" id="ccSegAlu" onclick="setCatalogMat('alu')">Алюминий</button>
+  </div>
+  <main class="screen-body">
+    <div class="cc-grid" id="catalogGrid"></div>
+  </main>
+</div>
+
+<div class="sheet-backdrop" id="catalogProjectBackdrop" onclick="if(event.target === this) closeCatalogProjectPicker()">
+  <div class="sheet">
+    <h2>В какой проект добавить цвет?</h2>
+    <div id="catalogProjectColor" style="font-size:var(--fs-sm); color:var(--ink-soft); margin:-8px 0 12px 0"></div>
+    <div id="catalogProjectList" style="max-height:50vh; overflow-y:auto; margin-bottom:14px"></div>
+    <div class="sheet-actions">
+      <button class="btn" onclick="closeCatalogProjectPicker()">Отменить</button>
+    </div>
+  </div>
+</div>
+
+<div class="sheet-backdrop" id="cutProjectBackdrop" onclick="if(event.target === this) closeCutProjectPicker()">
+  <div class="sheet">
+    <h2>Проект для раскроя</h2>
+    <div id="cutProjectList" style="max-height:50vh; overflow-y:auto; margin-bottom:14px"></div>
+    <div class="sheet-actions">
+      <button class="btn" onclick="closeCutProjectPicker()">Отменить</button>
+    </div>
+  </div>
+</div>
+
+<div class="sheet-backdrop" id="cutHelpBackdrop" onclick="if(event.target === this) closeCutHelp()">
+  <div class="sheet cut-help">
+    <h2>Как работают раскрой и склад</h2>
+    <div class="cut-help-body" id="cutHelpBody">
+      <h3>Что делает раскрой</h3>
+      <p>Раскрой берёт все детали выбранного проекта и раскладывает их по хлыстам так, чтобы <b>купить меньше хлыстов</b> и получить <b>меньше отхода</b>. Результат — схема: из какого хлыста какие детали резать.</p>
+
+      <h3>Откуда берутся детали</h3>
+      <ul>
+        <li><b>Рама, импост, створки</b> — длины по тем же формулам, что и смета: по внешней кромке с припуском на сварку.</li>
+        <li><b>Штапик</b> — 4 планки по сторонам каждого стекла и каждой панели.</li>
+        <li><b>Панель (планки)</b> — планки панели на всю её длину; ширина планки: ПВХ 100 мм, алюминий 80 мм.</li>
+        <li><b>Подоконник</b> — длина из элемента (подоконник под окном или отдельный элемент «подоконник»).</li>
+        <li><b>Армирование</b> (только ПВХ) — сталь внутри рамы, импостов и створок. Рама и створки: длина детали минус отступ с каждой стороны (настройка, по умолчанию 40 мм); импост — минус 10 мм с каждой стороны. Галочкой «Армирование» его можно убрать из раскроя.</li>
+        <li><b>Профиль москитной сетки</b> — 4 стороны каждой сетки (у элемента «Москитная сетка: Да»). Сетка створчатого окна — проём створки плюс 20 мм захода на раму с каждой стороны, у раздвижного — по размеру подвижной створки.</li>
+      </ul>
+      <p>Количество элементов учитывается: окно × 3 даёт детали три раза. Детали делятся на <b>группы</b>: вид профиля + цвет (у подоконника ещё ширина, армирование — одна группа «оцинкованная сталь»). Каждая группа режется из своих хлыстов.</p>
+
+      <h3>Настройки</h3>
+      <ul>
+        <li><b>Пропил</b> — сколько миллиметров съедает пила на каждом резе (обычно 5 мм).</li>
+        <li><b>Мин. обрезок</b> — кусок не короче этого считается <b>деловым обрезком</b> (его можно пустить в дело), короче — отходом. По умолчанию 140 мм, как в приложении romchi.</li>
+        <li><b>Хлыст</b> — длина нового хлыста для материала проекта. У каждой группы в списке можно выбрать свою длину: 6000 или 6500 мм.</li>
+        <li><b>Подрезка остатка</b> — сколько можно срезать в отход с остатка со склада (по умолчанию 80 мм, подробнее ниже).</li>
+        <li><b>Показывать названия алгоритмов</b> — у варианта будет видно, каким способом он получен.</li>
+      </ul>
+      <p>После изменения настроек старый результат сбрасывается — нажмите «Рассчитать раскрой» ещё раз.</p>
+
+      <h3>Как считается</h3>
+      <ul>
+        <li>Каждая деталь на хлысте занимает <b>свою длину + пропил</b>. Если последняя деталь доходит почти до конца хлыста (за ней остаётся не больше пропила), пропил после неё в отход не считается.</li>
+        <li>Раскрой считается <b>несколькими способами</b>: «первый подходящий», «самый плотный», «длинная + добор», «максимальное заполнение», «деловые обрезки», поиск перестановками и улучшение лучшего — каждый с остатками склада и без них.</li>
+        <li>Если до минимально возможного числа хлыстов ещё есть куда улучшать, включается <b>точный перебор</b>: он проверяет варианты, отбрасывая заведомо худшие. Если перебор успел пройти всё — появится «✓ Меньше хлыстов не бывает — проверено перебором».</li>
+        <li>На очень больших группах может не хватить времени — тогда будет пометка «Лимит времени — упрощённый результат». Группа, которую не удалось рассчитать, попадает в отдельный список вверху результатов.</li>
+        <li>Одинаковые результаты убираются, показываются <b>5 лучших вариантов</b>. Лучшим считается тот, где: меньше новых хлыстов → меньше отхода → больше взято со склада → меньше новых обрезков → обрезки длиннее.</li>
+        <li><b>«✓ Минимально возможное число хлыстов»</b> — меньше хлыстов не получится никак: сумма всех деталей с пропилами больше не поместится.</li>
+        <li>Если деталь длиннее хлыста, она не раскраивается — появится предупреждение; выберите для группы хлыст длиннее.</li>
+      </ul>
+
+      <h3>Как читать результат</h3>
+      <ul>
+        <li><b>Вариант 1–5</b> — переключение между вариантами группы. Под названием: сколько хлыстов, сколько остатков со склада и отход.</li>
+        <li><b>Новых хлыстов</b> — сколько купить/взять целых хлыстов. <b>Со склада</b> — сколько остатков склада пошло в дело.</li>
+        <li><b>Использование</b> — какая доля длины всех хлыстов ушла в детали. <b>Отход</b> — в мм (куски короче мин. обрезка) и в % (вместе с пропилами).</li>
+        <li><b>Деловые обрезки</b> — сколько останется годных кусков и их средняя длина. <b>Резов</b> — сколько деталей нарезать.</li>
+        <li>Полоса — это хлыст. Детали одной длины — одного цвета. <span class="cut-help-chip cut-help-remnant">светло-голубой</span> — деловой обрезок, <span class="cut-help-chip cut-help-waste">штриховка</span> — отход.</li>
+        <li><b>#3–4 · 6000 мм × 2</b> — два одинаковых хлыста, режутся одинаково. Зелёная метка <b>«склад №…»</b> — этот хлыст — остаток со склада.</li>
+        <li>Картинка справа — сечение профиля группы (рама, импост, створка и т. д.).</li>
+      </ul>
+
+      <h3 id="cutHelpWh">Как работает склад</h3>
+      <p>На складе хранятся <b>остатки профиля</b>: материал (ПВХ/алюминий), вид профиля, цвет, длина и количество. Добавлять их можно вручную на экране «Склад» или кнопкой «Обрезки на склад» после раскроя.</p>
+      <ul>
+        <li>Раскрой сам берёт остатки, которые <b>совпадают с группой</b>: тот же материал, тот же вид профиля и тот же цвет (по названию цвета).</li>
+        <li>Сначала детали пробуются уложить в остатки (короткие остатки первыми или длинные первыми), и только остальное — в новые хлысты. Вариант «без склада» тоже считается: если остатки не уменьшают число хлыстов, лучше их сохранить.</li>
+        <li><b>Правило подрезки</b> (как в приложении romchi): если после деталей от остатка остаётся не больше «подрезки» (80 мм) — хвост срезается в отход; если остаётся не меньше мин. обрезка — это новый деловой обрезок; если что-то среднее — такой остаток под эти детали не берётся.</li>
+        <li>Подоконники со склада не берутся и на склад не отправляются.</li>
+        <li>На экране «Склад» есть и ручной поиск: выберите деталь проекта — склад покажет, какие остатки под неё подходят. У этого поиска свой пропил (поле «Пропил» на экране склада); раскрой использует пропил из своих настроек.</li>
+      </ul>
+      <p><b>Списать со склада</b> — уменьшает количество тех остатков, что пошли в выбранные варианты (один раз). <b>Обрезки на склад</b> — добавляет на склад все деловые обрезки выбранных вариантов; одинаковые складываются в одну строку. После любой из этих кнопок варианты фиксируются; чтобы поменять — «Пересчитать раскрой».</p>
+
+      <h3>Как лучше работать</h3>
+      <ol>
+        <li>Проверьте пропил, мин. обрезок и длину хлыста у групп.</li>
+        <li>Нажмите «Рассчитать раскрой» и при желании выберите у групп другой вариант.</li>
+        <li>«PDF раскроя» — схема для цеха со всеми хлыстами и размерами (на русском, узбекском или кыргызском).</li>
+        <li>После резки: «Списать со склада» и «Обрезки на склад» — склад останется точным.</li>
+      </ol>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn primary" onclick="closeCutHelp()">Понятно</button>
+    </div>
+  </div>
+</div>
+
+<div class="screen" id="projectScreen">
+  <header>
+    <button class="icon-btn" aria-label="Назад" onclick="closeProjectScreen()">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <h1 id="projectScreenTitle" style="flex:1; text-align:left; margin-left:2px;">Проект</h1>
+    <div class="header-actions">
+      <button class="icon-btn" aria-label="Поделиться" title="Поделиться" onclick="shareProjectPdf()">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none"><circle cx="18" cy="5" r="3" stroke="currentColor" stroke-width="1.8"/><circle cx="6" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/><circle cx="18" cy="19" r="3" stroke="currentColor" stroke-width="1.8"/><path d="M8.6 10.5l6.8-4M8.6 13.5l6.8 4" stroke="currentColor" stroke-width="1.8"/></svg>
+      </button>
+      <button class="icon-btn" aria-label="Добавить элемент" onclick="openElementForm()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="4" y="4" width="13" height="16" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M18 15v6M15 18h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+      <button class="icon-btn" aria-label="Расчёт стоимости" onclick="openPriceEstimate()">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none"><rect x="4.5" y="3" width="15" height="18" rx="2" stroke="currentColor" stroke-width="1.7"/><rect x="7.5" y="6" width="9" height="3.6" rx="1" stroke="currentColor" stroke-width="1.4"/><circle cx="8.6" cy="13.4" r="1.05" fill="currentColor"/><circle cx="12" cy="13.4" r="1.05" fill="currentColor"/><circle cx="15.4" cy="13.4" r="1.05" fill="currentColor"/><circle cx="8.6" cy="17.2" r="1.05" fill="currentColor"/><circle cx="12" cy="17.2" r="1.05" fill="currentColor"/><circle cx="15.4" cy="17.2" r="1.05" fill="currentColor"/></svg>
+      </button>
+      <button class="icon-btn" aria-label="Ещё" onclick="toggleProjectMenu(event)">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="5" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><circle cx="12" cy="19" r="1.6" fill="currentColor"/></svg>
+      </button>
+    </div>
+  </header>
+  <div class="popup-menu-backdrop" id="projectMenuBackdrop" onclick="closeProjectMenu()">
+    <div class="popup-menu" onclick="event.stopPropagation()">
+      <button class="popup-menu-item" onclick="startEditProject()">Редактировать</button>
+      <button class="popup-menu-item danger" onclick="confirmDeleteCurrentProject()">Удалить</button>
+      <button class="popup-menu-item" onclick="copyCurrentProject()">Копировать</button>
+      <button class="popup-menu-item" onclick="openProjectSummary()">Сводка</button>
+      <button class="popup-menu-item" onclick="closeProjectMenu(); openGlassScreen()">Стёкла и сетки</button>
+    </div>
+  </div>
+  <div class="project-canvas" id="projectCanvas"></div>
+</div>
+
+<div class="screen" id="elementScreen">
+  <div class="modal-topbar">
+    <button class="topbar-btn muted" onclick="closeElementForm()">Отменить</button>
+    <span class="topbar-title">Новый элемент</span>
+    <button class="topbar-btn accent" onclick="addElementItem()">OK</button>
+  </div>
+  <div class="form-body">
+    <div class="form-row">
+      <div class="form-label">Тип<br>элемента</div>
+      <div class="radio-group">
+        <label class="radio-opt">
+          <input type="radio" name="elemType" value="casement" checked>
+          <span class="radio-dot"></span>
+          Створный
+        </label>
+        <label class="radio-opt">
+          <input type="radio" name="elemType" value="sliding">
+          <span class="radio-dot"></span>
+          Раздвижение
+        </label>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-label">Подоконник</div>
+      <div class="radio-group">
+        <label class="radio-opt">
+          <input type="radio" name="elemSill" value="no" checked onchange="toggleSillLenRow()">
+          <span class="radio-dot"></span>
+          Нет
+        </label>
+        <label class="radio-opt">
+          <input type="radio" name="elemSill" value="yes" onchange="toggleSillLenRow()">
+          <span class="radio-dot"></span>
+          Да
+        </label>
+      </div>
+    </div>
+    <div class="form-row inline" id="elemSillWidthRow" style="display:none">
+      <div class="form-label">Ширина полки, см</div>
+      <div class="form-input-wrap">
+        <select class="form-input" id="elemSillWidth">
+          <option value="15">15</option>
+          <option value="20" selected>20</option>
+          <option value="25">25</option>
+          <option value="30">30</option>
+          <option value="35">35</option>
+          <option value="40">40</option>
+          <option value="45">45</option>
+          <option value="50">50</option>
+          <option value="55">55</option>
+          <option value="60">60</option>
+        </select>
+        <span class="chevron">⌄</span>
+      </div>
+    </div>
+    <div class="form-row inline" id="elemSillOverhangRow" style="display:none">
+      <div class="form-label">Напуск с каждой стороны, мм</div>
+      <input class="form-input" id="elemSillOverhang" type="text" inputmode="numeric" placeholder="20" oninput="updateSillLenPlaceholder()">
+    </div>
+    <div class="form-row inline" id="elemSillLenRow" style="display:none">
+      <div class="form-label">Длина подоконника, мм</div>
+      <input class="form-input" id="elemSillLen" type="text" inputmode="numeric" placeholder="1540">
+    </div>
+    <div class="form-row">
+      <div class="form-label">Москитная<br>сетка</div>
+      <div class="radio-group">
+        <label class="radio-opt">
+          <input type="radio" name="elemNet" value="no" checked>
+          <span class="radio-dot"></span>
+          Нет
+        </label>
+        <label class="radio-opt">
+          <input type="radio" name="elemNet" value="yes">
+          <span class="radio-dot"></span>
+          Да
+        </label>
+      </div>
+    </div>
+    <div class="form-row inline">
+      <div class="form-label">Цвет рамы</div>
+      <div class="form-input-wrap color-trigger" onclick="openColorPicker('elemColor','elemColorSwatch')">
+        <span class="color-swatch" id="elemColorSwatch"></span>
+        <select class="form-input" id="elemColor" onchange="updateColorSwatch('elemColor','elemColorSwatch', getCurrentProject())"></select>
+        <span class="chevron">⌄</span>
+      </div>
+    </div>
+    <div class="form-row inline">
+      <div class="form-label">Цвет окна<br><span style="font-weight:400; color:var(--ink-soft)">стекло</span></div>
+      <div class="form-input-wrap color-trigger" onclick="openGlassPicker('elemGlass','elemGlassSwatch')">
+        <span class="color-swatch" id="elemGlassSwatch"></span>
+        <select class="form-input" id="elemGlass" onchange="updateGlassSwatch('elemGlass','elemGlassSwatch')"></select>
+        <span class="chevron">⌄</span>
+      </div>
+    </div>
+    <div class="form-row inline">
+      <div class="form-label">Ширина</div>
+      <input class="form-input" id="elemWidth" type="text" inputmode="numeric" placeholder="1500" oninput="updateSillLenPlaceholder()">
+    </div>
+    <div class="form-row inline">
+      <div class="form-label">Высота</div>
+      <input class="form-input" id="elemHeight" type="text" inputmode="numeric" placeholder="1200">
+    </div>
+    <div class="form-row inline">
+      <div class="form-label">Количество</div>
+      <input class="form-input" id="elemQty" type="text" inputmode="numeric" placeholder="1">
+    </div>
+  </div>
+</div>
+
+<div class="screen" id="elementViewScreen">
+  <header>
+    <button class="icon-btn" aria-label="Назад" onclick="closeElementView()">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <h1 id="elementViewTitle" style="flex:1; text-align:left; margin-left:2px;">1</h1>
+    <div class="header-actions">
+      <button class="icon-btn" id="elemUndoBtn" aria-label="Отменить" title="Отменить" onclick="undoElement()" disabled>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M9 14L4 9l5-5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 9h10a6 6 0 0 1 0 12h-3" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="icon-btn" id="elemRedoBtn" aria-label="Вернуть" title="Вернуть" onclick="redoElement()" disabled>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 14l5-5-5-5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 9H10a6 6 0 0 0 0 12h3" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="icon-btn" id="elemClearBtn" aria-label="Очистить" title="Очистить" onclick="clearElementScheme()" disabled>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M5 16l9-9 5 5-6 6H8z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9.5 11.5l5 5M13 21h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+      <button class="icon-btn" aria-label="3D-вид" title="3D-вид" onclick="open3DView()">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="icon-btn" aria-label="Добавить элемент" onclick="openElementForm()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="4" y="4" width="13" height="16" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M18 15v6M15 18h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+      <button class="icon-btn" aria-label="Ещё" onclick="toggleElementMenu(event)">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="5" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><circle cx="12" cy="19" r="1.6" fill="currentColor"/></svg>
+      </button>
+    </div>
+  </header>
+  <div class="popup-menu-backdrop" id="elementMenuBackdrop" onclick="closeElementMenu()">
+    <div class="popup-menu" onclick="event.stopPropagation()">
+      <button class="popup-menu-item" onclick="startEditElement()">Редактировать характеристики</button>
+      <button class="popup-menu-item danger" onclick="confirmDeleteCurrentElement()">Удалить элемент</button>
+      <button class="popup-menu-item" onclick="clearCurrentElement()">Очистить элемент</button>
+      <button class="popup-menu-item" onclick="copyCurrentElement()">Копировать элемент</button>
+      <button class="popup-menu-item" onclick="openElementSummary()">Резюме элемента</button>
+    </div>
+  </div>
+
+  <div class="elem-toolbar" id="elemToolbar"></div>
+
+  <div class="elem-view-body">
+    <div class="elem-diagram-row">
+      <div class="diagram-core">
+        <div class="dim-total dim-total-vert" id="elemHeightTotal" data-dim-kind="frameDim" data-axis="height" data-dim-k="1" data-dim-g="0" style="display:none"><i class="dm-x dm-x-t"></i><i class="dm-x dm-x-b"></i><span></span></div>
+        <div class="dim-col" id="elemHeightDims" style="display:none"></div>
+        <div class="elem-shape" id="elemShape"></div>
+        <div class="col-dims-container" id="elemColDims"></div>
+        <div class="dim-col dim-col-right" id="elemHeightDimsRight"></div>
+      </div>
+    </div>
+    <div class="row-dims-container" id="elemRowDims"></div>
+    <div class="elem-bottom-row">
+      <div class="elem-width-wrap">
+        <div class="dim-row" id="elemWidthDims"></div>
+        <div class="dim-total dim-total-horiz" id="elemWidthTotal" data-dim-kind="frameDim" data-axis="width" data-dim-k="1" data-dim-g="0" style="display:none"><span></span></div>
+      </div>
+    </div>
+  </div>
+  <div class="elem-step" id="elemStep">
+    <button class="elem-step-btn" aria-label="Предыдущий элемент" onclick="stepElement(-1)">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <span id="elemStepLabel">1 из 1</span>
+    <button class="elem-step-btn" aria-label="Следующий элемент" onclick="stepElement(1)">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- ===== 3D-вид элемента (по схеме viewer3d romchi) ===== -->
+<div class="screen" id="view3dScreen">
+  <header>
+    <button class="icon-btn" aria-label="Назад" onclick="close3DView()">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <h1 id="v3dTitle" style="flex:1; text-align:left; margin-left:2px;">3D</h1>
+    <div class="header-actions">
+      <button class="icon-btn" aria-label="Исходный вид" title="Исходный вид" onclick="v3dResetView()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 12a8 8 0 1 0 2.3-5.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M4 4v4h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+  </header>
+  <div class="v3d-stage"><canvas id="v3dCanvas"></canvas></div>
+  <div class="v3d-hint">Проведите пальцем — повернуть, двумя пальцами — приблизить, двойной тап — исходный вид</div>
+  <div class="v3d-actions">
+    <button class="btn primary" id="v3dOpenBtn" onclick="v3dToggle('open')">Открыть</button>
+    <button class="btn" id="v3dTiltBtn" onclick="v3dToggle('tilt')">Проветривание</button>
+  </div>
+</div>
+
+<div class="sheet-backdrop" id="dimBackdrop">
+  <div class="sheet">
+    <h2 id="dimSheetTitle">Ширина, мм</h2>
+    <input id="dimInput" type="text" inputmode="none" readonly autocomplete="off">
+    <div class="num-pad" onmousedown="event.preventDefault()">
+      <button type="button" onclick="dimKey('1')">1</button>
+      <button type="button" onclick="dimKey('2')">2</button>
+      <button type="button" onclick="dimKey('3')">3</button>
+      <button type="button" onclick="dimKey('4')">4</button>
+      <button type="button" onclick="dimKey('5')">5</button>
+      <button type="button" onclick="dimKey('6')">6</button>
+      <button type="button" onclick="dimKey('7')">7</button>
+      <button type="button" onclick="dimKey('8')">8</button>
+      <button type="button" onclick="dimKey('9')">9</button>
+      <button type="button" class="aux" onclick="dimKey('clear')" aria-label="Очистить">C</button>
+      <button type="button" onclick="dimKey('0')">0</button>
+      <button type="button" class="aux" onclick="dimKey('back')" aria-label="Стереть">⌫</button>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn" onclick="closeDimSheet()">Отменить</button>
+      <button class="btn primary" onclick="saveDimension()">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Расчёт стоимости (аналог PriceEstimateActivity) ===== -->
+<div class="screen" id="priceEstimateScreen">
+  <header>
+    <button class="icon-btn" aria-label="Назад" onclick="closePriceEstimate()">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <h1 style="flex:1; text-align:left; margin-left:2px;">Расчёт стоимости</h1>
+    <div class="header-actions">
+      <button class="icon-btn" aria-label="Настройка цен" onclick="openPriceSetting()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3.2" stroke="currentColor" stroke-width="1.7"/><path d="M12 2.8v2.4M12 18.8v2.4M21.2 12h-2.4M5.2 12H2.8M18.5 5.5l-1.7 1.7M7.2 16.8l-1.7 1.7M18.5 18.5l-1.7-1.7M7.2 7.2L5.5 5.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </header>
+  <main class="screen-body" id="priceEstimateBody"></main>
+</div>
+
+<!-- ===== Настройка цен (аналог PriceSettingActivity) ===== -->
+<div class="screen" id="priceSettingScreen">
+  <div class="modal-topbar">
+    <button class="topbar-btn muted" onclick="closePriceSetting()">Отменить</button>
+    <span class="topbar-title">Цены</span>
+    <button class="topbar-btn accent" onclick="savePriceSetting()">OK</button>
+  </div>
+  <main class="screen-body" id="priceSettingBody"></main>
+</div>
+
+<div class="screen" id="colorSettingScreen">
+  <header>
+    <button class="icon-btn" aria-label="Назад" onclick="closeColorSetting()">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <h1>Цвета</h1>
+    <div class="header-actions spacer"></div>
+  </header>
+  <div class="cs-tabs">
+    <button class="cs-tab on" id="csTabPvc" onclick="setColorSettingMat('pvc')">ПВХ</button>
+    <button class="cs-tab" id="csTabAlu" onclick="setColorSettingMat('alu')">Алюминий</button>
+  </div>
+  <main class="screen-body" id="colorSettingBody"></main>
+</div>
+
+<div class="screen" id="cuttingScreen">
+  <header>
+    <button class="icon-btn" aria-label="Назад" onclick="closeCutting()">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <h1>Раскрой</h1>
+    <div class="header-actions">
+      <button class="icon-btn" aria-label="Как это работает" title="Как это работает" onclick="openCutHelp('cut')">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9.2" stroke="currentColor" stroke-width="1.8"/><path d="M12 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="7.6" r="1.25" fill="currentColor"/></svg>
+      </button>
+    </div>
+  </header>
+  <main class="screen-body" id="cuttingBody"></main>
+</div>
+
+<!-- ===== Стёкла и сетки: список для стекольщика, москитные сетки, раскрой стекла на листах ===== -->
+<div class="screen" id="glassScreen">
+  <header>
+    <button class="icon-btn" aria-label="Назад" onclick="closeGlassScreen()">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <h1 id="glassTitle" style="flex:1; text-align:left; margin-left:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Стёкла и сетки</h1>
+    <div class="header-actions spacer"></div>
+  </header>
+  <main class="screen-body glass-list" id="glassBody"></main>
+</div>
+
+<!-- Язык и состав PDF -->
+<div class="sheet-backdrop" id="pdfOptBackdrop" onclick="if(event.target === this) closePdfOptions()">
+  <div class="sheet">
+    <h2>Выберите язык PDF</h2>
+    <div class="pdf-opt-langs" id="pdfOptLangs"></div>
+    <div id="pdfOptProject">
+      <label class="pdf-opt-check"><input type="checkbox" id="pdfOptPrices"> Показывать цены (смета и цена каждого элемента)</label>
+      <label class="pdf-opt-check"><input type="checkbox" id="pdfOptSizes"> Показывать размеры</label>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn" onclick="closePdfOptions()">Отменить</button>
+      <button class="btn primary" onclick="confirmPdfOptions()">Создать PDF</button>
+    </div>
+  </div>
+</div>
+
+<div class="screen" id="warehouseScreen">
+  <header>
+    <button class="icon-btn" aria-label="Назад" onclick="closeWarehouse()">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <h1>Склад</h1>
+    <div class="header-actions">
+      <button class="icon-btn" aria-label="Как это работает" title="Как это работает" onclick="openCutHelp('wh')">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9.2" stroke="currentColor" stroke-width="1.8"/><path d="M12 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="7.6" r="1.25" fill="currentColor"/></svg>
+      </button>
+    </div>
+  </header>
+  <main class="screen-body" id="warehouseBody"></main>
+</div>
+
+<!-- Склад: выбор профиля / цвета (тот же список, что и выбор цвета рамы) -->
+<div class="sheet-backdrop" id="whPickerBackdrop" onclick="if(event.target === this) closeWhPicker()">
+  <div class="sheet">
+    <h2 id="whPickerTitle">Цвет</h2>
+    <div class="color-pick-list" id="whPickerList"></div>
+    <div class="sheet-actions">
+      <button class="btn" onclick="closeWhPicker()" style="flex:1;">Отменить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Склад: добавить / редактировать остаток -->
+<div class="sheet-backdrop" id="whAddBackdrop" onclick="if(event.target === this) closeWhAdd()">
+  <div class="sheet wh-sheet">
+    <h2 id="whAddTitle">Добавить остаток</h2>
+    <div class="wh-field">
+      <label>Профиль</label>
+      <div class="wh-select" onclick="openWhPicker('whRole')">
+        <select id="whRole"></select>
+        <span class="chevron">⌄</span>
+      </div>
+    </div>
+    <div class="wh-field">
+      <label>Цвет</label>
+      <div class="wh-select" onclick="openWhPicker('whColor')">
+        <span class="color-swatch" id="whColorSwatch"></span>
+        <select id="whColor"></select>
+        <span class="chevron">⌄</span>
+      </div>
+    </div>
+    <div class="wh-field">
+      <label>Длина остатка, мм</label>
+      <input id="whLength" type="number" min="1" step="1" placeholder="напр. 1800">
+    </div>
+    <div class="wh-field">
+      <label>Количество, шт</label>
+      <input id="whQty" type="number" min="1" step="1" value="1">
+    </div>
+    <div class="sheet-actions">
+      <button class="btn" onclick="closeWhAdd()">Отменить</button>
+      <button class="btn primary" onclick="saveWhRemnant()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Склад: поиск подходящих остатков под деталь -->
+<div class="sheet-backdrop" id="whSearchBackdrop" onclick="if(event.target === this) closeWhSearch()">
+  <div class="sheet wh-sheet">
+    <h2>Найти остатки под деталь</h2>
+    <button type="button" class="wh-pick-from-project" onclick="openWhPickProject()">Взять деталь из проекта…</button>
+    <div class="wh-field">
+      <label>Профиль</label>
+      <div class="wh-select" onclick="openWhPicker('whsRole')">
+        <select id="whsRole"></select>
+        <span class="chevron">⌄</span>
+      </div>
+    </div>
+    <div class="wh-field">
+      <label>Цвет</label>
+      <div class="wh-select" onclick="openWhPicker('whsColor')">
+        <span class="color-swatch" id="whsColorSwatch"></span>
+        <select id="whsColor"></select>
+        <span class="chevron">⌄</span>
+      </div>
+    </div>
+    <div class="wh-field">
+      <label>Требуемая длина детали, мм</label>
+      <input id="whsLength" type="number" min="1" step="1" placeholder="напр. 1500">
+    </div>
+    <div class="sheet-actions">
+      <button class="btn" onclick="closeWhSearch()">Отменить</button>
+      <button class="btn primary" onclick="runWhSearch()">Найти</button>
+    </div>
+  </div>
+</div>
+
+<!-- Склад: выбор проекта и детали для автозаполнения поиска -->
+<div class="sheet-backdrop" id="whPickProjectBackdrop" onclick="if(event.target === this) closeWhPickProject()">
+  <div class="sheet">
+    <h2>Проект</h2>
+    <div id="whPickProjectList" style="max-height:50vh; overflow-y:auto; margin-bottom:14px"></div>
+    <div class="sheet-actions">
+      <button class="btn" onclick="closeWhPickProject()">Отменить</button>
+    </div>
+  </div>
+</div>
+<div class="sheet-backdrop" id="whPickPieceBackdrop" onclick="if(event.target === this) closeWhPickPiece()">
+  <div class="sheet">
+    <h2>Деталь</h2>
+    <div id="whPickPieceList" style="max-height:50vh; overflow-y:auto; margin-bottom:14px"></div>
+    <div class="sheet-actions">
+      <button class="btn" onclick="closeWhPickPiece()">Отменить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Редактировать характеристики элемента -->
+<div class="sheet-backdrop" id="editElementBackdrop">
+  <div class="sheet">
+    <h2 class="edit-elem-title">Редактировать элемент</h2>
+    <div class="edit-elem-row">
+      <label>Номер элемента</label>
+      <input id="editElemNumber" type="text" disabled>
+    </div>
+    <div class="edit-elem-row">
+      <label>Тип элемента</label>
+      <div class="radio-group">
+        <label class="radio-opt">
+          <input type="radio" name="editElemType" value="casement">
+          <span class="radio-dot"></span>
+          Створный
+        </label>
+        <label class="radio-opt">
+          <input type="radio" name="editElemType" value="sliding">
+          <span class="radio-dot"></span>
+          Раздвижение
+        </label>
+      </div>
+    </div>
+    <div class="edit-elem-row">
+      <label>Подоконник</label>
+      <div class="radio-group">
+        <label class="radio-opt">
+          <input type="radio" name="editElemSill" value="no" onchange="toggleEditSillLenRow()">
+          <span class="radio-dot"></span>
+          Нет
+        </label>
+        <label class="radio-opt">
+          <input type="radio" name="editElemSill" value="yes" onchange="toggleEditSillLenRow()">
+          <span class="radio-dot"></span>
+          Да
+        </label>
+      </div>
+    </div>
+    <div class="edit-elem-row" id="editElemSillWidthRow" style="display:none">
+      <label>Ширина полки, см</label>
+      <select id="editElemSillWidth">
+        <option value="15">15</option>
+        <option value="20">20</option>
+        <option value="25">25</option>
+        <option value="30">30</option>
+        <option value="35">35</option>
+        <option value="40">40</option>
+        <option value="45">45</option>
+        <option value="50">50</option>
+        <option value="55">55</option>
+        <option value="60">60</option>
+      </select>
+    </div>
+    <div class="edit-elem-row" id="editElemSillOverhangRow" style="display:none">
+      <label>Напуск с каждой стороны, мм</label>
+      <input id="editElemSillOverhang" type="text" inputmode="numeric" placeholder="20" oninput="updateEditSillLenPlaceholder()">
+    </div>
+    <div class="edit-elem-row" id="editElemSillLenRow" style="display:none">
+      <label>Длина подоконника, мм</label>
+      <input id="editElemSillLen" type="text" inputmode="numeric">
+    </div>
+    <div class="edit-elem-row">
+      <label>Москитная сетка</label>
+      <div class="radio-group">
+        <label class="radio-opt">
+          <input type="radio" name="editElemNet" value="no">
+          <span class="radio-dot"></span>
+          Нет
+        </label>
+        <label class="radio-opt">
+          <input type="radio" name="editElemNet" value="yes">
+          <span class="radio-dot"></span>
+          Да
+        </label>
+      </div>
+    </div>
+    <div class="edit-elem-row">
+      <label>Цвет рамы</label>
+      <div class="color-row color-trigger" onclick="openColorPicker('editElemColor','editElemColorSwatch')">
+        <span class="color-swatch" id="editElemColorSwatch"></span>
+        <select id="editElemColor" onchange="updateColorSwatch('editElemColor','editElemColorSwatch', getCurrentProject())"></select>
+      </div>
+    </div>
+    <div class="edit-elem-row">
+      <label>Цвет окна<br><span style="font-weight:400; color:var(--ink-soft)">стекло</span></label>
+      <div class="color-row color-trigger" onclick="openGlassPicker('editElemGlass','editElemGlassSwatch')">
+        <span class="color-swatch" id="editElemGlassSwatch"></span>
+        <select id="editElemGlass" onchange="updateGlassSwatch('editElemGlass','editElemGlassSwatch')"></select>
+      </div>
+    </div>
+    <div class="edit-elem-row">
+      <label>Ширина, мм</label>
+      <input id="editElemWidth" type="text" inputmode="numeric" oninput="updateEditSillLenPlaceholder()">
+    </div>
+    <div class="edit-elem-row">
+      <label>Высота, мм</label>
+      <input id="editElemHeight" type="text" inputmode="numeric">
+    </div>
+    <div class="edit-elem-row">
+      <label>Количество</label>
+      <input id="editElemQty" type="text" inputmode="numeric">
+    </div>
+    <div class="sheet-actions">
+      <button class="btn" onclick="closeEditElement()">Отменить</button>
+      <button class="btn primary" onclick="saveEditElement()">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- Подтверждение удаления (проект / элемент) -->
+<div class="sheet-backdrop" id="confirmBackdrop">
+  <div class="sheet">
+    <h2 id="confirmTitle">Удалить?</h2>
+    <div class="sheet-actions">
+      <button class="btn" onclick="closeConfirm()">Отменить</button>
+      <button class="btn primary" id="confirmOkBtn" onclick="runConfirm()">Удалить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Резюме проекта / элемента — как в старом проекте: центрированный диалог со списком строк -->
+<div class="sheet-backdrop" id="summaryBackdrop">
+  <div class="sheet">
+    <h2 id="summaryTitle">Резюме</h2>
+    <div class="summary-rows" id="summaryBody"></div>
+    <div class="sheet-actions">
+      <button class="btn primary" onclick="closeSummary()" style="flex:1;">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<!-- Меню проекта по долгому нажатию на главном экране -->
+<div class="pcm-backdrop" id="pcmBackdrop" onclick="pcmBackdropClick(event)">
+  <div class="pcm-menu" id="pcmMenu" role="menu">
+    <button class="pcm-item" role="menuitem" onclick="pcmAction('edit')">Редактировать</button>
+    <button class="pcm-item danger" role="menuitem" onclick="pcmAction('delete')">Удалить</button>
+    <button class="pcm-item" role="menuitem" onclick="pcmAction('copy')">Копировать</button>
+    <button class="pcm-item" role="menuitem" onclick="pcmAction('summary')">Сводка</button>
+  </div>
+</div>
+
+<!-- Меню элемента по долгому нажатию на карточку на экране проекта -->
+<div class="pcm-backdrop" id="pecmBackdrop" onclick="pecmBackdropClick(event)">
+  <div class="pcm-menu" id="pecmMenu" role="menu">
+    <button class="pcm-item" role="menuitem" onclick="pecmAction('edit')">Редактировать характеристики</button>
+    <button class="pcm-item danger" role="menuitem" onclick="pecmAction('delete')">Удалить элемент</button>
+    <button class="pcm-item" role="menuitem" onclick="pecmAction('copy')">Копировать элемент</button>
+    <button class="pcm-item" role="menuitem" onclick="pecmAction('summary')">Резюме элемента</button>
+  </div>
+</div>
+
+<!-- Выбор цвета -->
+<div class="sheet-backdrop" id="colorPickBackdrop" onclick="if(event.target===this) closeColorPicker()">
+  <div class="sheet">
+    <h2 id="colorPickTitle">Цвет</h2>
+    <div class="color-pick-list" id="colorPickList"></div>
+    <div class="sheet-actions">
+      <button class="btn" onclick="closeColorPicker()" style="flex:1;">Отменить</button>
+    </div>
+  </div>
+</div>
+
+<div id="printRoot"></div>
+
+<div class="toast" id="toast"></div>
+
+
+<!-- Активация по коду: экран закрывает приложение, пока нет действующего кода для этого устройства -->
+<div id="licenseLock" class="license-lock">
+  <div class="license-box">
+    <h2>Активация</h2>
+    <p class="license-note" id="licenseNote">Отправьте разработчику ID устройства (кнопки ниже). Когда его добавят, нажмите «Проверить».</p>
+    <div class="license-id" id="licenseId">—</div>
+    <button class="btn" onclick="licCopyId()">Скопировать ID</button>
+    <div class="license-links">
+      <a class="btn license-link" id="licenseTg" target="_blank" rel="noopener" aria-label="Telegram" title="Telegram"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="#229ED9"/><path fill="#fff" d="M17.6 7.4 5.9 11.9c-.8.3-.8.8-.1 1l3 .9 1.1 3.4c.1.4.3.5.6.5.3 0 .4-.1.6-.3l1.5-1.5 3 2.2c.5.3.9.1 1.1-.5l2-9.4c.2-.8-.3-1.2-1-.9z"/></svg></a>
+      <a class="btn license-link" id="licenseWa" target="_blank" rel="noopener" aria-label="WhatsApp" title="WhatsApp"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="#25D366"/><path d="M12 5.5a6.5 6.5 0 0 0-5.6 9.8l-.9 3.2 3.3-.9A6.5 6.5 0 1 0 12 5.5z" fill="none" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/><path fill="#fff" d="M9.7 9.2c.2-.3.6-.3.8 0l.6 1.1c.1.2.1.4-.1.6l-.4.5c.5 1 1.3 1.7 2.3 2.2l.5-.5c.2-.2.4-.2.6-.1l1.1.6c.3.2.3.6.1.8-.5.7-1.3.9-2.1.6-2-.7-3.5-2.2-4.2-4.2-.2-.6 0-1.2.5-1.6z"/></svg></a>
+    </div>
+    <button class="btn license-recheck" onclick="licRecheck()">Проверить</button>
+    <div class="license-msg" id="licenseMsg"></div>
+  </div>
+</div>
+<script type="module" src="./src/main.ts"></script>
+</body>
+</html>

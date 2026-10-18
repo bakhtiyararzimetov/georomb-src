@@ -1,0 +1,6 @@
+node_modules/
+app/dist/
+# закрытый ключ подписи и база выданных кодов — никогда не в git
+keys/
+backend/data/
+*.private.json
