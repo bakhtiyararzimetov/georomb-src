@@ -15,7 +15,7 @@ export const PROFILE_STROKE = '#1d1d1d';
 // контуры — тонкая светлая линия в ~1 физический пиксель при любом размере схемы (non-scaling-stroke)
 export const CONTOUR_COLOR = '#8c8c8c';
 export function contourStyle(): string {
-  const px = 1 / (window.devicePixelRatio || 1);
+  const px = 1 / (globalThis.devicePixelRatio || 1);   // globalThis: в Node (сервер API) window нет
   return `<style>[stroke="${PROFILE_STROKE}"]{stroke:${CONTOUR_COLOR};stroke-width:${px}px;vector-effect:non-scaling-stroke}</style>`;
 }
 export const HINGE_T = [0.2, 0.8];

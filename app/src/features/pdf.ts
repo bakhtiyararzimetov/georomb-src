@@ -1,6 +1,6 @@
 // PDF без библиотек: страницы A4 рисуются на canvas (150 dpi), чертёж — тот же buildSvg, страницы — JPEG в PDF.
 // Здесь общий движок (используют PDF проекта, каталога и раскроя) и PDF проекта (кнопка «Поделиться»).
-import type { Layout, Project, TreeNode, WinElement } from '../types.ts';
+import type { Layout, Project, WinElement } from '../types.ts';
 import { showToast } from '../ui/dom.ts';
 import { elementColorHex } from '../data/colors.ts';
 import { elementGlassName } from '../data/glass.ts';
@@ -9,7 +9,7 @@ import { computeLayout } from '../model/layout.ts';
 import { globalChain, type DimSeg } from '../model/dims.ts';
 import { calcProject, fmtMoney, fmtNum, type ProjectCost } from '../model/pricing.ts';
 import { S } from '../state.ts';
-import { CONTOUR_COLOR, PROFILE_STROKE, buildSillSvg, buildSvg } from '../render/svg.ts';
+import { drawingSvg, leafDesc } from '../render/drawingSvg.ts';
 import { deliverFile } from '../platform/share.ts';
 import { getCurrentProject } from '../storage.ts';
 import { openPdfOptions, pdfLineName, pdfOpts, pdfT } from './pdfI18n.ts';
@@ -57,26 +57,6 @@ function pdfHeader(ctx: CanvasRenderingContext2D, project: Project, no: number, 
   ctx.fillStyle = PDF_LINE; ctx.fillRect(PDF_M, 96, PDF_PW - 2*PDF_M, 2);
 }
 
-// Подоконник выступает за viewBox; <img> обрезает по нему — расширяем viewBox и картинку на те же отступы.
-// padX нужен, чтобы сместить картинку при drawImage.
-function pdfSvgFromOut(out: Layout, pxW: number, pxH: number, lineW: number): { svg: string; w: number; h: number; padX: number } {
-  const style = `<style>[stroke="${PROFILE_STROKE}"]{stroke:${CONTOUR_COLOR};stroke-width:${lineW}px;vector-effect:non-scaling-stroke}</style>`;
-  const isSill = out.elType === 'sill';
-  let svg = (isSill ? buildSillSvg(out.W, out.H, out.color) : buildSvg(out.W, out.H, out))
-    .replace(/<style>[\s\S]*?<\/style>/, style)
-    .replace(/ data-nid="\d+"/g, '')
-    .replace(/ onclick="selectNode\(\d+\)"/g, '')
-    .replace(/ style="cursor:pointer"/g, '');
-  if(isSill) return { svg: svg.replace('width="100%" height="100%"', `width="${pxW}" height="${pxH}"`), w:pxW, h:pxH, padX:0 };
-  const frameT = out.frameT || 0, mx = frameT * 0.8, mb = frameT * 0.9;
-  const scale = pxW / out.W;
-  const padX = Math.round(mx * scale), padB = Math.round(mb * scale);
-  const w = pxW + padX * 2, h = pxH + padB;
-  svg = svg
-    .replace(`viewBox="0 0 ${out.W} ${out.H}"`, `viewBox="${-mx} 0 ${out.W + mx * 2} ${out.H + mb}"`)
-    .replace('width="100%" height="100%"', `width="${w}" height="${h}"`);
-  return { svg, w, h, padX };
-}
 export function pdfLoadSvg(svg: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -137,24 +117,6 @@ function pdfDimsY(ctx: CanvasRenderingContext2D, x: number, top: number, len: nu
   pdfDimV(ctx, colT, top, top + len, String(Math.round(total)), true);
 }
 
-function pdfLeafDesc(node: TreeNode): string {
-  const o = node.opening;
-  if(!o){
-    if(node.fill === 'panelV') return pdfT('panelV');
-    if(node.fill === 'panelH') return pdfT('panelH');
-    return pdfT('fixedGlass');
-  }
-  const side = o.hinge === 'left' ? pdfT('left') : pdfT('right');
-  switch(o.type){
-    case 'Turn':       return pdfT('turn') + side;
-    case 'Tilt':       return pdfT('tilt');
-    case 'TiltTurn':   return pdfT('tiltTurn') + side;
-    case 'Door':       return pdfT('door') + side;
-    case 'Sliding':    return pdfT('slidingLeaf') + side;
-    case 'FixSliding': return pdfT('fix');
-  }
-  return pdfT('sash');
-}
 const pdfTypeName = (e: WinElement) => (e.type === 'sill') ? pdfT('typeSill') : (e.type === 'sliding') ? pdfT('typeSliding') : pdfT('typeCasement');
 
 type PlanPage = { kind: 'list'; from: number; to: number; first: boolean } | { kind: 'elem'; idx: number } | { kind: 'estimate' };
@@ -212,7 +174,7 @@ async function pdfDrawList(pg: PdfPage, project: Project, res: ProjectCost, plan
     const out = drawLayout(e, project);
     const k = 100 / Math.max(out.W, out.H);
     const tw = Math.max(1, Math.round(out.W * k)), th = Math.max(1, Math.round(out.H * k));
-    const sv = pdfSvgFromOut(out, tw, th, 1.2);
+    const sv = drawingSvg(out, tw, th, 1.2);
     const img = await pdfLoadSvg(sv.svg);
     ctx.drawImage(img, 170 + Math.round((100 - tw) / 2) - sv.padX, y + 10 + Math.round((100 - th) / 2), sv.w, sv.h);
     if(pdfOpts().sizes){
@@ -242,7 +204,7 @@ async function pdfDrawElement(pg: PdfPage, project: Project, res: ProjectCost, i
   const sc = Math.min(AW / W, AH / H);
   const dw = Math.round(W * sc), dh = Math.round(H * sc);
   const dx = Math.round(AX0 + (AW - dw) / 2), dy = Math.round(AY0 + (AH - dh) / 2);
-  const sv = pdfSvgFromOut(out, dw, dh, 2.2);
+  const sv = drawingSvg(out, dw, dh, 2.2);
   const img = await pdfLoadSvg(sv.svg);
   ctx.drawImage(img, dx - sv.padX, dy, sv.w, sv.h);
   // globalChain собирает ВСЕ разрезы по оси (не только в первой колонке)
@@ -269,7 +231,7 @@ async function pdfDrawElement(pg: PdfPage, project: Project, res: ProjectCost, i
     pdfText(ctx, r[1], 390, y, 30, { bold:true, maxW:230 });
   });
   pdfText(ctx, pdfT('sashes'), 640, 1382, 30, { color:PDF_GREY });
-  const leaves = out.leaves.map(l => pdfLeafDesc(l.node));
+  const leaves = out.leaves.map(l => leafDesc(l.node));
   const show = leaves.length > 5 ? 4 : leaves.length;
   for(let i = 0; i < show; i++) pdfText(ctx, (i + 1) + '. ' + leaves[i], 640, 1436 + i * 54, 28, { maxW:PDF_PW - PDF_M - 640 });
   if(leaves.length > 5) pdfText(ctx, pdfT('andMore') + ' ' + (leaves.length - 4), 640, 1436 + 4 * 54, 28, { color:PDF_GREY });
