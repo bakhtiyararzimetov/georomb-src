@@ -1,13 +1,20 @@
-// Мост к нативным плагинам Capacitor (Filesystem, Share, App). Глобальный window.Capacitor внедряет
+// Мост к нативным плагинам Capacitor (Device, Filesystem, Share, App). Глобальный window.Capacitor внедряет
 // нативная оболочка; в обычном браузере его нет — тогда работают браузерные запасные пути.
 
 interface CapPlugins {
-  Filesystem?: { writeFile(o: { path: string; data: string; directory: string }): Promise<{ uri: string }> };
+  Device?: { getId(): Promise<{ identifier: string }> };
+  Filesystem?: {
+    writeFile(o: { path: string; data: string; directory: string; encoding?: string; recursive?: boolean }): Promise<{ uri: string }>;
+    readdir(o: { path: string; directory: string }): Promise<{ files: ({ name: string } | string)[] }>;
+    deleteFile(o: { path: string; directory: string }): Promise<void>;
+    checkPermissions(): Promise<{ publicStorage: string }>;
+    requestPermissions(): Promise<{ publicStorage: string }>;
+  };
   Share?: { share(o: { title?: string; text?: string; url?: string; dialogTitle?: string }): Promise<unknown> };
   App?: {
     minimizeApp?(): Promise<void>;
     exitApp?(): Promise<void>;
-    addListener(ev: 'backButton', cb: () => void): unknown;
+    addListener(ev: 'backButton' | 'pause', cb: () => void): unknown;
   };
 }
 interface CapacitorGlobal { isNativePlatform?(): boolean; Plugins?: CapPlugins; }

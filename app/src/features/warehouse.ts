@@ -6,6 +6,7 @@ import { $, $input, $select, escapeHtml, parseSize, showToast } from '../ui/dom.
 import { COLOR_OPTIONS, colorHex } from '../data/colors.ts';
 import { CUT_ROLE_LABEL, extractCuttingGroups } from './cutting.ts';
 import { showTab } from './navigation.ts';
+import { notifyDataChanged } from '../storage.ts';
 
 // длины нового хлыста, если подходящего остатка нет (справочно)
 const WH_STOCK_LENGTHS = [6000, 6500];
@@ -78,6 +79,7 @@ export function saveWarehouse(): void {
       kerfThickness: wh.matcher.kerfThickness, remnants: S.warehouseRemnants, nextId: S.whNextId
     }));
   }catch{ /* без сохранения */ }
+  notifyDataChanged();
 }
 
 // списки выбора: роли профиля и цвета каталога (+ «Без цвета»)

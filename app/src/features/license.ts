@@ -1,10 +1,11 @@
 // Активация по коду (привязка к устройству). Экран блокирует приложение, пока нет действующего кода
 // или ID нет в подписанном списке revoked.json. Ключи хранения прежние — активированные устройства не слетят.
 import {
-  ID_ALPHABET, ID_RE, REVOKE_URL, dateNum, formatId, verifyCode, verifyRevokedFile,
+  ID_ALPHABET, REVOKE_URL, codeFromBackup, dateNum, formatId, pickDeviceId, verifyCode, verifyRevokedFile,
   type RevokedList, type VerifyFail
 } from '../../../shared/license.ts';
 import { $, copyText, showToast } from '../ui/dom.ts';
+import { nativePlugins } from '../platform/capacitor.ts';
 import { CONTACT } from './about.ts';
 
 const ID_KEY = 'iwd.deviceId.v1', LIC_KEY = 'iwd.license.v1', REV_KEY = 'iwd.revoked.v2';
@@ -19,18 +20,32 @@ const WHY: Record<VerifyFail | 'revoked', string> = {
 
 declare global { interface Window { licenseInfo?: { id: string; exp: string }; } }
 
-function getDeviceId(): string {
-  let id: string | null = null;
-  try{ id = localStorage.getItem(ID_KEY); }catch{ /* нет хранилища */ }
-  if(!id || !ID_RE.test(id)){
-    const r = new Uint8Array(10);
-    crypto.getRandomValues(r);
-    id = Array.from(r, x => ID_ALPHABET[x % ID_ALPHABET.length]).join('');
-    try{ localStorage.setItem(ID_KEY, id); }catch{ /* без сохранения */ }
-  }
+function randomId(): string {
+  const r = new Uint8Array(10);
+  crypto.getRandomValues(r);
+  return Array.from(r, x => ID_ALPHABET[x % ID_ALPHABET.length]).join('');
+}
+// ANDROID_ID через @capacitor/device; нет плагина, ошибка или ответа дольше 2 с — null (тогда случайный ID)
+async function hardwareId(): Promise<string | null> {
+  const dev = nativePlugins()?.Device;
+  if(!dev) return null;
+  try{
+    const r = await Promise.race([dev.getId(), new Promise<null>(res => setTimeout(() => res(null), 2000))]);
+    return r && typeof r.identifier === 'string' ? r.identifier : null;
+  }catch{ return null; }
+}
+// сохранённый ID не меняется (обновление не сбрасывает активацию); новая установка — ID из ANDROID_ID,
+// он тот же после удаления и повторной установки APK с той же подписью
+async function resolveDeviceId(): Promise<string> {
+  let stored: string | null = null;
+  try{ stored = localStorage.getItem(ID_KEY); }catch{ /* нет хранилища */ }
+  const id = await pickDeviceId(stored, stored ? null : await hardwareId(), randomId);
+  if(id !== stored){ try{ localStorage.setItem(ID_KEY, id); }catch{ /* без сохранения */ } }
   return id;
 }
-const deviceId = getDeviceId();
+let deviceId = '';
+/** ID устройства (пустая строка, пока initLicense его не определил). */
+export const getDeviceId = (): string => deviceId;
 
 let revList: RevokedList = { ts:0, ids:[], lic:[] };
 try{
@@ -82,6 +97,20 @@ async function licCheck(): Promise<void> {
   unlock(res.exp);
 }
 
+/** Сохранённый код активации (для резервной копии). */
+export function storedLicenseCode(): string | null {
+  try{ return localStorage.getItem(LIC_KEY); }catch{ return null; }
+}
+/** Код из импортированной копии: принимается, только если своего кода нет и этот подходит устройству. */
+export async function adoptBackupCode(raw: unknown): Promise<boolean> {
+  if(!deviceId) return false;
+  const code = await codeFromBackup(raw, storedLicenseCode(), deviceId);
+  if(!code) return false;
+  try{ localStorage.setItem(LIC_KEY, code); }catch{ return false; }
+  await licCheck();
+  return true;
+}
+
 export function licCopyId(): void {
   void copyText(formatId(deviceId)).then(ok => { if(ok) showToast('ID скопирован'); });
 }
@@ -95,7 +124,8 @@ export async function licRecheck(): Promise<void> {
   if(!msg.textContent) msg.textContent = got ? 'Ваш ID пока не добавлен в список. Сообщите его разработчику.' : 'Не удалось связаться с сервером. Проверьте интернет.';
 }
 
-export function initLicense(): void {
+export async function initLicense(): Promise<void> {
+  deviceId = await resolveDeviceId();
   $('licenseId').textContent = formatId(deviceId);
   const contactText = 'Здравствуйте! Вот мой ID устройства: ' + formatId(deviceId) + '. Хочу активировать мобильное приложение.';
   const contactMsg = encodeURIComponent(contactText);
@@ -105,9 +135,7 @@ export function initLicense(): void {
   $('licenseTg').addEventListener('click', () => {
     void copyText(contactText).then(ok => { if(ok) showToast('Сообщение скопировано. Вставьте его в чат'); });
   });
-  // сначала проверка по коду и сохранённому списку (без сети), затем фоном свежий список
-  void (async () => {
-    await licCheck();
-    if(await revFetch()) await licCheck();
-  })();
+  // сначала проверка по коду и сохранённому списку (без сети), затем свежий список
+  await licCheck();
+  if(await revFetch()) await licCheck();
 }

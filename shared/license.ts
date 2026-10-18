@@ -23,6 +23,24 @@ export const REVOKE_URL = 'https://bakhtiyararzimetov.github.io/GeoRomb/revoked.
 export const ID_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 export const ID_RE = /^[A-Z2-9]{10}$/;
 
+/**
+ * ID из системного идентификатора Android (ANDROID_ID): на Android 8+ он один для пары «ключ подписи + устройство»
+ * и не меняется при удалении и повторной установке APK — тогда и активация по списку сохраняется.
+ * В алфавите 32 знака, поэтому байт % 32 даёт равномерные символы.
+ */
+export async function deviceIdFromHardware(hw: string): Promise<string> {
+  const h = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode('georomb-device|' + hw)));
+  return Array.from(h.subarray(0, 10), x => ID_ALPHABET[x % ID_ALPHABET.length]).join('');
+}
+/** Какой ID использовать: сохранённый (обновление приложения не должно его менять) → из ANDROID_ID → случайный. */
+export async function pickDeviceId(stored: string | null, hw: string | null, random: () => string): Promise<string> {
+  if(stored && ID_RE.test(stored)) return stored;
+  if(hw && hw.trim()){
+    try{ return await deviceIdFromHardware(hw.trim()); }catch{ /* нет WebCrypto — случайный */ }
+  }
+  return random();
+}
+
 export interface ListLicense { id: string; exp: string; }
 export interface RevokedFile { v: number; ts: number; ids: string[]; lic: ListLicense[]; sig: string; }
 export interface RevokedList { ts: number; ids: string[]; lic: ListLicense[]; }
@@ -103,6 +121,12 @@ export async function verifyRevokedFile(d: unknown, pub: JsonWebKey = PUBLIC_KEY
 async function signBytes(priv: JsonWebKey, data: Uint8Array<ArrayBuffer>): Promise<Uint8Array> {
   const key = await crypto.subtle.importKey('jwk', priv, ALG_KEY, false, ['sign']);
   return new Uint8Array(await crypto.subtle.sign(ALG_SIG, key, data));
+}
+/** Код активации из резервной копии: берём, только если своего кода нет, а этот подходит этому устройству и не истёк. */
+export async function codeFromBackup(raw: unknown, current: string | null, deviceId: string, pub: JsonWebKey = PUBLIC_KEY): Promise<string | null> {
+  if(current || typeof raw !== 'string' || raw.length > 1000) return null;
+  const code = raw.trim();
+  try{ return (await verifyCode(code, deviceId, pub)).ok ? code : null; }catch{ return null; }
 }
 export async function signCode(priv: JsonWebKey, id: string, exp: string): Promise<string> {
   const payload = codePayload(id, exp);

@@ -114,6 +114,7 @@ function init(): void {
   navigation.initHardwareBack();
   navigation.initBackGesture();
   navigation.initTabFabHide();
-  license.initLicense();
+  void license.initLicense();
+  backup.initAutoBackup();
 }
 init();

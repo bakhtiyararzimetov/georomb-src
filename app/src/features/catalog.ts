@@ -5,7 +5,7 @@ import type { ColorOption, Mat } from '../types.ts';
 import { $, copyText, escapeHtml, showToast, vibrate } from '../ui/dom.ts';
 import { COLOR_OPTIONS, catalogIsOff, projectMat } from '../data/colors.ts';
 import { deliverFile, deliverText } from '../platform/share.ts';
-import { saveProjects } from '../storage.ts';
+import { notifyDataChanged, saveProjects } from '../storage.ts';
 import { openProjectScreen } from './projects.ts';
 import { openElementForm } from './elementForm.ts';
 import {
@@ -35,6 +35,7 @@ export function loadCatalogOff(): Set<string> {
 }
 export function catalogSaveOff(): void {
   try{ localStorage.setItem(CATALOG_OFF_KEY, JSON.stringify([...S.catalogOff])); }catch{ /* без сохранения */ }
+  notifyDataChanged();
 }
 
 type Kind = 'euras' | 'ral' | 'renolit' | 'other';

@@ -1,5 +1,6 @@
 // Расчёт стоимости (порт PriceSettingActivity + PriceEstimateActivity старого проекта).
 import { DEFAULT_QTY, S } from '../state.ts';
+import { notifyDataChanged } from '../storage.ts';
 import type { Mat, PriceSettings, Project, Rect, SubLayout, TreeNode, WasteMode, WinElement } from '../types.ts';
 import { projectMat } from '../data/colors.ts';
 import { NET_OVERLAP, REINF_MULLION_OFFSET, profileFor, sashInset, sashOverhang, sashProfile } from '../data/profiles.ts';
@@ -92,6 +93,7 @@ export function loadPriceSettings(): PriceSettings {
 }
 export function persistPriceSettings(): void {
   try{ localStorage.setItem(PRICE_STORAGE_KEY, JSON.stringify(S.prices)); }catch{ /* без сохранения */ }
+  notifyDataChanged();
 }
 
 export function fmtMoney(v: number): string {

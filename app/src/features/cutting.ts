@@ -7,7 +7,7 @@ import { elementGeometry } from '../model/pricing.ts';
 import { CUT_BUDGET_MS, type CutPlan, type CutResult, type CutVariant, type Scrap, cutOptimize } from '../model/cutOptimizer.ts';
 import { CUT_PROFILE_ICONS } from '../render/icons.ts';
 import { deliverFile } from '../platform/share.ts';
-import { getCurrentProject } from '../storage.ts';
+import { getCurrentProject, notifyDataChanged } from '../storage.ts';
 import { PDF_DIM, PDF_FONT, PDF_GREY, PDF_INK, PDF_LINE, PDF_M, PDF_PH, PDF_PW, type JpegPage, type PdfPage,
          pdfCanvasJpeg, pdfFromJpegs, pdfNewPage, pdfState, pdfText, safeFileName } from './pdf.ts';
 import { saveWarehouse, wh } from './warehouse.ts';
@@ -82,6 +82,7 @@ export function loadCuttingSettings(): CuttingSettings {
 }
 export function saveCuttingSettings(s: CuttingSettings): void {
   try{ localStorage.setItem(CUT_SETTINGS_KEY, JSON.stringify(s)); }catch{ /* без сохранения */ }
+  notifyDataChanged();
 }
 export function cuttingSettingsAreUntouched(): boolean {
   return JSON.stringify(S.cutting) === JSON.stringify(normalizeCuttingSettings(null));

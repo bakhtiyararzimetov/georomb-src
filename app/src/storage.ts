@@ -8,11 +8,19 @@ export const PROJECTS_STORAGE_KEY = 'iwd.projects.v1';
 // история отмены (history / redo) не сохраняется — она нужна только в течение сессии
 export const withoutHistory = (k: string, v: unknown): unknown => (k === 'history' || k === 'redo') ? undefined : v;
 
+// подписчик на любые сохранения данных (автокопия в «Документы», features/backup.ts)
+let changeListener: (() => void) | null = null;
+export function onDataChanged(cb: () => void): void { changeListener = cb; }
+export function notifyDataChanged(): void {
+  try{ if(changeListener) changeListener(); }catch{ /* копия не должна мешать сохранению */ }
+}
+
 export function saveProjects(): void {
   try{
     localStorage.setItem(PROJECTS_STORAGE_KEY,
       JSON.stringify({ projects: S.projects, nextId: S.nextId, nextElemId: S.nextElemId }, withoutHistory));
   }catch{ /* localStorage недоступен или переполнен — работаем без сохранения */ }
+  notifyDataChanged();
 }
 
 export function loadProjects(): void {

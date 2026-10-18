@@ -8,7 +8,11 @@ import { GLASS_TYPES } from '../data/glass.ts';
 import { SLIDING_TEMPLATES } from '../data/profiles.ts';
 import { PRICE_DEFAULTS, SILL_WIDTHS, calcElement, clonePriceDefaults, isWasteMode, persistPriceSettings } from '../model/pricing.ts';
 import { deliverFile } from '../platform/share.ts';
-import { saveProjects, withoutHistory } from '../storage.ts';
+import { onDataChanged, saveProjects, withoutHistory } from '../storage.ts';
+import { nativePlugins } from '../platform/capacitor.ts';
+import { ID_ALPHABET } from '../../../shared/license.ts';
+import { BACKUP_DIR, createAutoBackup } from './autoBackup.ts';
+import { adoptBackupCode, storedLicenseCode } from './license.ts';
 import { rerenderList } from './projects.ts';
 import { catalogSaveOff } from './catalog.ts';
 import { WH_NO_COLOR, WarehouseMatcher, saveWarehouse, whNormalizeRemnant, wh } from './warehouse.ts';
@@ -23,7 +27,36 @@ function buildBackup(ids?: number[]) {
   return { format:BACKUP_FORMAT, version:1, exportedAt:new Date().toISOString(), projects:clean, priceSettings:S.prices,
            catalogOff:[...S.catalogOff],
            warehouse:{ kerfThickness:wh.matcher.kerfThickness, remnants:S.warehouseRemnants },
-           cuttingSettings:S.cutting };
+           cuttingSettings:S.cutting,
+           // код привязан к ID устройства — на чужом телефоне не подойдёт; после переустановки ID тот же (license.ts)
+           licenseCode:storedLicenseCode() };
+}
+
+// ===== Автокопия в «Документы/GeoRomb» (переживает удаление приложения) =====
+const BACKUP_TAG_KEY = 'iwd.backupTag.v1';
+function backupTag(): string {
+  let t: string | null = null;
+  try{ t = localStorage.getItem(BACKUP_TAG_KEY); }catch{ /* нет хранилища */ }
+  if(!t || !/^[A-Z2-9]{4}$/.test(t)){
+    const r = new Uint8Array(4);
+    crypto.getRandomValues(r);
+    t = Array.from(r, x => ID_ALPHABET[x % ID_ALPHABET.length]).join('');
+    try{ localStorage.setItem(BACKUP_TAG_KEY, t); }catch{ /* без сохранения */ }
+  }
+  return t;
+}
+/** Только в нативном приложении: копия через 3 с после изменений и сразу при сворачивании. */
+export function initAutoBackup(): void {
+  const plugins = nativePlugins();
+  if(!plugins || !plugins.Filesystem) return;
+  const ab = createAutoBackup({ fs: plugins.Filesystem, tag: backupTag(), getJson: () => JSON.stringify(buildBackup(), null, 1) });
+  onDataChanged(() => ab.schedule());
+  if(plugins.App) plugins.App.addListener('pause', () => { void ab.flush(); });
+  const sub = document.getElementById('exportRowSub');
+  if(sub) sub.textContent = 'Сохранить в файл. Автокопия: Документы/' + BACKUP_DIR;
+  const isub = document.getElementById('importRowSub');
+  if(isub) isub.textContent = 'Из файла или автокопии в Документы/' + BACKUP_DIR;
+  ab.schedule();                                         // первая копия сразу после запуска
 }
 async function exportProjects(ids?: number[]): Promise<void> {
   const n = Array.isArray(ids) ? ids.length : S.projects.length;
@@ -246,6 +279,7 @@ export async function importProjectsFromFile(input: HTMLInputElement): Promise<v
     }
     saveProjects();
     rerenderList();
+    if(await adoptBackupCode(data.licenseCode)) msg += ' Активация восстановлена.';
     showToast('Импортировано проектов: ' + added + (skipped ? ' (пропущено элементов: ' + skipped + ')' : '') + '.' + msg);
   }catch(err){
     console.error(err);
