@@ -1,77 +1,103 @@
-# GeoRomb
+<p align="center">
+  <img src="assets/logo.svg" alt="GeoRomb" width="120">
+</p>
 
-Мобильное приложение для расчёта окон и дверей из ПВХ и алюминия: схема элемента, смета, раскрой профиля, склад остатков, каталог цветов, PDF.
-Фронтенд написан на TypeScript (Vite) и упаковывается в Android через Capacitor. Бэкенд — CLI лицензий: он подписывает `revoked.json`, который лежит на GitHub Pages.
+<h1 align="center">GeoRomb</h1>
+
+<p align="center">
+  Расчёт окон и дверей из ПВХ и алюминия на телефоне: схема, смета, раскрой профиля и стекла, склад остатков, PDF для клиента.
+</p>
+
+<p align="center">
+  <img alt="Версия" src="https://img.shields.io/badge/версия-1.2-1E5AA8">
+  <img alt="Android" src="https://img.shields.io/badge/Android-Capacitor-3DDC84?logo=android&logoColor=white">
+  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white">
+  <img alt="Node.js" src="https://img.shields.io/badge/Node.js-26-5FA04E?logo=nodedotjs&logoColor=white">
+  <img alt="Лицензия" src="https://img.shields.io/badge/лицензия-проприетарная-lightgrey">
+</p>
+
+<p align="center">
+  <a href="https://bakhtiyararzimetov.github.io/GeoRomb-app/">Скачать APK</a> ·
+  <a href="docs/architecture.md">Архитектура</a> ·
+  <a href="docs/api.md">API для бота</a> ·
+  <a href="CHANGELOG.md">Изменения</a>
+</p>
+
+---
+
+<p align="center">
+  <img src="assets/screenshots/project.png" alt="Проект: окна и двери" width="23%">
+  <img src="assets/screenshots/3d.png" alt="3D-вид окна" width="23%">
+  <img src="assets/screenshots/cutting.png" alt="Раскрой профиля" width="23%">
+  <img src="assets/screenshots/pdf.png" alt="PDF для клиента" width="23%">
+</p>
+
+## Возможности
+
+- **Схема элемента**: окна, двери, раздвижные системы и подоконники. Импосты, створки (поворотные, поворотно-откидные, откидные, двери), панели, переплёты внутри створки, размерные линии, отмена и повтор.
+- **3D-вид**: окно можно повернуть и открыть створку.
+- **Смета**: профиль, фурнитура, стекло, панели, подоконники, армирование, москитные сетки, налог, учёт отходов профиля.
+- **Раскрой профиля** по хлыстам: точный перебор с учётом пропила, минимального обрезка и остатков со склада. **Раскрой стекла** на листах.
+- **Склад остатков**: раскрой сначала берёт подходящие остатки со склада, а годные обрезки после раскроя можно сохранить на склад.
+- **Каталог** цветов профиля (RAL, ламинация, анодирование) и стёкол.
+- **PDF** проекта, раскроя и списка стёкол на русском, узбекском и кыргызском, с ценами или без.
+- **Резервная копия**: экспорт и импорт проектов файлом.
+- **API для WhatsApp-бота**: JSON окна → готовый PDF ([docs/api.md](docs/api.md)).
+- **Лицензии**: активация по ID устройства, коды подписаны ECDSA ([docs/licensing.md](docs/licensing.md)).
+
+## Быстрый старт
+
+Нужен Node.js 26+ ([.nvmrc](.nvmrc)).
+
+```bash
+npm install
+npm run dev          # приложение в браузере: http://localhost:5173
+npm test             # тесты
+npm run server       # API для бота: http://localhost:3000/api/generate-window-pdf
+```
+
+Сборка APK, выпуск версии и все команды — [docs/development.md](docs/development.md).
 
 ## Структура
 
 ```
 georomb/
-├── app/                      фронтенд (Vite + TypeScript, без фреймворка)
-│   ├── index.html            разметка экранов
+├── app/                 мобильное приложение (Vite + TypeScript, Capacitor)
+│   ├── index.html       разметка экранов
 │   └── src/
-│       ├── main.ts           точка входа: запуск и реестр обработчиков для onclick
-│       ├── types.ts          модель данных (Project, WinElement, TreeNode, Layout…)
-│       ├── state.ts          общее состояние приложения
-│       ├── storage.ts        localStorage (ключи iwd.*)
-│       ├── data/             справочники: цвета, стёкла, профильные системы
-│       ├── model/            расчёты без DOM: дерево делений, раскладка, размеры,
-│       │                     история, смета, раскрой профиля и стекла
-│       ├── render/           SVG-схема и векторы фурнитуры
-│       ├── features/         экраны: проекты, элемент, 3D, каталог, раскрой, склад,
-│       │                     цены, бэкап, PDF, навигация, лицензия
-│       ├── platform/         Capacitor и «Поделиться»
-│       ├── ui/               DOM-помощники и общие диалоги
-│       └── styles/app.css
-├── backend/src/              CLI лицензий (Node + TypeScript)
-├── server/                   API для WhatsApp-бота: JSON проекта → PDF (см. server/README.md)
-├── shared/license.ts         формат кодов и подписи — общий для приложения и бэкенда
-└── scripts/copy-to-capacitor.ts
+│       ├── types.ts     модель данных (Project, WinElement, TreeNode, Layout)
+│       ├── data/        справочники: цвета, стёкла, профильные системы
+│       ├── model/       расчёты без DOM: раскладка, смета, раскрой
+│       ├── render/      SVG-схема и чертёж для PDF
+│       ├── features/    экраны: проекты, элемент, 3D, раскрой, склад, цены, PDF, лицензия
+│       ├── platform/    Capacitor и «Поделиться»
+│       └── ui/          DOM-помощники и диалоги
+├── server/              API для WhatsApp-бота: JSON проекта → PDF
+│   ├── src/  test/  examples/
+├── backend/src/         CLI лицензий: коды активации и revoked.json
+├── shared/license.ts    формат кодов и подписи (общий для app и backend)
+├── scripts/             служебные скрипты (копирование сборки в Capacitor)
+├── docs/                документация
+├── assets/              логотип и скриншоты
+└── .github/             CI и шаблоны Issue / Pull Request
 ```
 
-## Что умеет (сверх исходной версии)
+## Документация
 
-- **Москитная сетка** — «Москитная сетка: Да» в форме элемента: размеры от створок, цена за м², раскрой профиля сетки.
-- **Армирование ПВХ** — длины от рамы, импостов и створок, отдельная группа раскроя и цена за метр.
-- **Отходы профиля в цене** (Настройки → Цены): без отходов, процент, по полной длине, по минимальным размерам.
-  Два последних режима берут раскрой из `model/cutOptimizer.ts` в детерминированном режиме, поэтому смета не меняется от раза к разу.
-- **Стёкла и сетки** (меню проекта ⋮): список для стекольщика, раскрой стекла на листах (`model/sheetCut.ts`, гильотинный), PDF.
-- **PDF на русском, узбекском и кыргызском** (`features/pdfI18n.ts`); у PDF проекта — «Показывать цены» (смета) и «Показывать размеры».
-- **Раскрой**: точный перебор (ветви и границы), пометка «лимит времени», список групп, которые не удалось рассчитать.
+| Документ | О чём |
+|---|---|
+| [docs/architecture.md](docs/architecture.md) | как устроены приложение, сервер и лицензии |
+| [docs/development.md](docs/development.md) | команды, сборка APK, выпуск версии |
+| [docs/api.md](docs/api.md) | API для WhatsApp-бота: запросы, формат проекта, ошибки |
+| [docs/licensing.md](docs/licensing.md) | активация, выдача и отзыв кодов |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | правила работы с кодом |
+| [SECURITY.md](SECURITY.md) | уязвимости и хранение ключей |
+| [CHANGELOG.md](CHANGELOG.md) | история версий |
 
-Новые поля необязательные: проекты, цены и настройки со старых телефонов открываются без изменений,
-а по умолчанию всё новое выключено (кроме армирования в раскрое ПВХ).
+## Связь
 
-## Фронтенд
+Bakhtiyar Arzimetov — Telegram [@Bakhtiyar124](https://t.me/Bakhtiyar124) · WhatsApp [+7 747 945 39 26](https://wa.me/77479453926)
 
-```bash
-npm install
-npm run dev          # http://localhost:5173 — разработка в браузере
-npm run build        # проверка типов + сборка в app/dist
-npm run cap:copy     # app/dist → ~/myapp/www (старая папка сохраняется как www.bak-…)
-cd ~/myapp && npx cap sync android
-```
+## Лицензия
 
-Ключи localStorage, адрес `revoked.json` и открытый ключ остались прежними. Проекты, цены, склад и активация у пользователей, которые обновляют приложение, сохраняются.
-
-## Бэкенд: лицензии
-
-Делает то же, что `keygen.html`, и в том же формате.
-
-```bash
-# один раз: перенести закрытый ключ из keygen.html (файл keys/ исключён из git)
-npm run license -- init-key --from ~/Downloads/keygen.html
-# один раз: загрузить список клиентов, сохранённый в keygen.html
-npm run license -- import ~/Downloads/iwindoor-issued-codes.json
-
-npm run license -- issue ABCDE-23456 --days 365 --name "Клиент"   # выдать код
-npm run license -- add-list ABCDE-23456 --days 30                 # активация без кода
-npm run license -- revoke ABCDE-23456                             # отозвать
-npm run license -- build --out revoked.json                       # собрать и подписать список
-npm run license -- verify revoked.json                            # проверить подпись
-```
-
-Собранный `revoked.json` загружается в репозиторий `bakhtiyararzimetov/GeoRomb` вместо старого. Приложение скачивает его по адресу
-`https://bakhtiyararzimetov.github.io/GeoRomb/revoked.json`.
-
-**Закрытый ключ (`keys/private.jwk.json`) и база клиентов (`backend/data/`) никогда не попадают в git** — они перечислены в `.gitignore`.
+© 2026 Bakhtiyar Arzimetov. Все права защищены. Копирование, изменение и распространение без письменного разрешения запрещены. Подробнее: [LICENSE](LICENSE).

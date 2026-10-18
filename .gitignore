@@ -4,3 +4,9 @@ app/dist/
 keys/
 backend/data/
 *.private.json
+# ключ подписи Android и локальные настройки
+*.jks
+*.keystore
+.env
+# служебные папки инструментов
+.superpowers/

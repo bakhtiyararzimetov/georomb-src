@@ -1,0 +1,40 @@
+# Лицензии и активация
+
+## Как это работает
+
+1. При первом запуске приложение создаёт ID устройства (10 символов, например `6T4GE-YA3CP`) и показывает экран «Активация».
+2. Клиент отправляет ID разработчику кнопкой Telegram или WhatsApp.
+3. Разработчик выдаёт доступ одним из двух способов:
+   - **код активации**: строка, подписанная закрытым ключом (ID + срок). Клиент вставляет её в приложение, и приложение проверяет подпись открытым ключом без интернета;
+   - **активация без кода**: ID добавляется в подписанный список `revoked.json` вместе со сроком. Клиент нажимает «Проверить», приложение скачивает список и открывается.
+4. Список `revoked.json` лежит на GitHub Pages: `https://bakhtiyararzimetov.github.io/GeoRomb/revoked.json` (репозиторий `bakhtiyararzimetov/GeoRomb`, локально `~/georomb-pages`). В нём же отозванные ID: такое устройство блокируется, даже если у него есть код.
+
+Формат и проверка подписи — [shared/license.ts](../shared/license.ts) (ECDSA P-256).
+
+## CLI
+
+```bash
+# один раз: перенести закрытый ключ из keygen.html (keys/ исключён из git)
+npm run license -- init-key --from ~/Downloads/keygen.html
+# один раз: загрузить список клиентов, сохранённый в keygen.html
+npm run license -- import ~/Downloads/iwindoor-issued-codes.json
+
+npm run license -- list                                           # все клиенты
+npm run license -- issue ABCDE-23456 --days 365 --name "Клиент"   # выдать код (без --days — навсегда)
+npm run license -- extend ABCDE-23456 --days 30                   # продлить
+npm run license -- add-list ABCDE-23456 --days 30                 # активация без кода
+npm run license -- revoke ABCDE-23456                             # отозвать
+npm run license -- unrevoke ABCDE-23456                           # вернуть
+npm run license -- build --out revoked.json                       # собрать и подписать список
+npm run license -- verify revoked.json                            # проверить подпись
+npm run license -- verify-code ABCDE-23456 <код>                  # проверить код
+```
+
+После `build` загрузите `revoked.json` в `~/georomb-pages` и сделайте push. **Не правьте файл руками:** подпись перестанет сходиться, и приложение отвергнет список.
+
+## Где хранятся секреты
+
+- `keys/private.jwk.json` — закрытый ключ. Кто им владеет, тот может выдавать коды.
+- `backend/data/` — база выданных кодов.
+
+Обе папки исключены из git. Храните их резервную копию отдельно (см. [SECURITY.md](../SECURITY.md)).

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+    <rect width="1024" height="1024" rx="220" fill="#FFFFFF"/>
+    <g transform="translate(512, 512)">
+        <text font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-weight="700" font-size="135" text-anchor="middle" dominant-baseline="central" letter-spacing="-1">
+            <tspan fill="#1E5AA8">GeoR</tspan><tspan fill="#FFFFFF">  </tspan><tspan fill="#1E5AA8">mb</tspan>
+        </text>
+        <!-- Perfect Diamond (Rhombus) replacing the space for 'o' -->
+        <polygon points="28,-80 83,-5 28,70 -27,-5" fill="#FFC72C" transform="translate(48, 0)"/>
+    </g>
+</svg>
