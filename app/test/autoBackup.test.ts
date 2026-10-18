@@ -1,28 +1,29 @@
 // Автокопия в «Документы/GeoRomb»: файл переживает удаление приложения, его потом открывает «Импорт проектов».
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { BACKUP_DIR, backupFileName, createAutoBackup, filesToPrune, type BackupFs } from '../src/features/autoBackup.ts';
+import { BACKUP_DIR, backupFileName, createAutoBackup, filesToPrune, projectFingerprint, type BackupFs } from '../src/features/autoBackup.ts';
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 const day = (s: string) => new Date(s + 'T12:00:00');
 
-function fakeFs(opts: { failWrites?: number; perm?: string; files?: string[] } = {}) {
+function fakeFs(opts: { failWrites?: number; perm?: string; grant?: string; files?: string[] } = {}) {
   const writes: { path: string; data: string; directory: string }[] = [];
   const deleted: string[] = [];
-  let failWrites = opts.failWrites || 0, permRequests = 0;
+  let failWrites = opts.failWrites || 0, permRequests = 0, calls = 0;
   const files = new Set(opts.files || []);
   const fs: BackupFs = {
     async writeFile(o){
+      calls++;
       if(failWrites > 0){ failWrites--; throw new Error('EACCES'); }
       writes.push(o); files.add(o.path.split('/').pop()!);
       return { uri: 'file:///' + o.path };
     },
-    async readdir(){ return { files: [...files].map(name => ({ name })) }; },
+    async readdir(){ calls++; return { files: [...files].map(name => ({ name })) }; },
     async deleteFile(o){ deleted.push(o.path); files.delete(o.path.split('/').pop()!); },
     async checkPermissions(){ return { publicStorage: opts.perm || 'granted' }; },
-    async requestPermissions(){ permRequests++; return { publicStorage: 'granted' }; }
+    async requestPermissions(){ permRequests++; return { publicStorage: opts.grant || 'granted' }; }
   };
-  return { fs, writes, deleted, permRequests: () => permRequests };
+  return { fs, writes, deleted, permRequests: () => permRequests, calls: () => calls };
 }
 
 test('backupFileName: дата и метка установки', () => {
@@ -60,13 +61,58 @@ test('flush: пишет сразу, если были изменения; без
   assert.equal(await ab.flush(), false, 'второй раз без изменений');
 });
 
-test('ошибка записи: один раз просит разрешение и повторяет', async () => {
-  const f = fakeFs({ failWrites: 1, perm: 'prompt' });
-  const ab = createAutoBackup({ fs: f.fs, getJson: () => '{}', tag: 'AB3D', now: () => day('2026-10-18'), delayMs: 10 });
+function memFlag(){ let v = false; return { get: () => v, set: () => { v = true; } }; }
+
+test('нет разрешения (Android ≤ 10): спрашивает один раз до записи, разрешили — пишет', async () => {
+  const f = fakeFs({ perm: 'prompt', grant: 'granted' });
+  const ab = createAutoBackup({ fs: f.fs, getJson: () => '{}', tag: 'AB3D', now: () => day('2026-10-18'), delayMs: 10, declined: memFlag() });
   ab.schedule();
   assert.equal(await ab.flush(), true);
   assert.equal(f.permRequests(), 1);
   assert.equal(f.writes.length, 1);
+});
+
+test('отказали в разрешении — запоминаем и больше не трогаем файлы и не спрашиваем', async () => {
+  const f = fakeFs({ perm: 'prompt', grant: 'denied' });
+  const declined = memFlag();
+  const ab = createAutoBackup({ fs: f.fs, getJson: () => '{}', tag: 'AB3D', now: () => day('2026-10-18'), delayMs: 10, declined });
+  ab.schedule();
+  assert.equal(await ab.flush(), false);
+  assert.equal(declined.get(), true);
+  assert.equal(f.calls(), 0, 'без разрешения файлы не трогаем — иначе плагин сам покажет системный диалог');
+  const ab2 = createAutoBackup({ fs: f.fs, getJson: () => '{}', tag: 'AB3D', now: () => day('2026-10-18'), delayMs: 10, declined });
+  ab2.schedule();
+  assert.equal(await ab2.flush(), false);
+  assert.equal(f.permRequests(), 1, 'после перезапуска тоже не спрашиваем');
+});
+
+test('пока приложение заблокировано (экран активации) — не пишем, но изменения не теряются', async () => {
+  const f = fakeFs();
+  let locked = true;
+  const ab = createAutoBackup({ fs: f.fs, getJson: () => '{}', tag: 'AB3D', now: () => day('2026-10-18'), delayMs: 10, canRun: () => !locked });
+  ab.schedule();
+  assert.equal(await ab.flush(), false);
+  assert.equal(f.calls(), 0);
+  locked = false;
+  assert.equal(await ab.flush(), true);
+});
+
+test('schedule можно передать как обычную функцию', async () => {
+  const f = fakeFs();
+  const ab = createAutoBackup({ fs: f.fs, getJson: () => '{}', tag: 'AB3D', now: () => day('2026-10-18'), delayMs: 10 });
+  const cb = ab.schedule;
+  cb();
+  await sleep(40);
+  assert.equal(f.writes.length, 1);
+});
+
+test('projectFingerprint: одинаковые проекты (кроме id и номера) совпадают, разные — нет', () => {
+  const el = (w: number) => ({ id: 7, type: 'casement', width: w, height: 1200, qty: 1, color: null, root: { nid: 3, kind: 'leaf' } });
+  const a = { id: 1, number: 1, name: 'Иванов', date: '3 сентября', elements: [el(1500)] };
+  const b = { id: 9, number: 4, name: 'Иванов', date: '3 сентября', elements: [{ ...el(1500), id: 42, root: { nid: 77, kind: 'leaf' } }] };
+  assert.equal(projectFingerprint(a), projectFingerprint(b));
+  assert.notEqual(projectFingerprint(a), projectFingerprint({ ...b, elements: [el(1600)] }));
+  assert.notEqual(projectFingerprint(a), projectFingerprint({ ...b, name: 'Петров' }));
 });
 
 test('запись не удалась совсем — false без исключения, следующее изменение пробует снова', async () => {

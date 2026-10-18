@@ -11,8 +11,8 @@ import { deliverFile } from '../platform/share.ts';
 import { onDataChanged, saveProjects, withoutHistory } from '../storage.ts';
 import { nativePlugins } from '../platform/capacitor.ts';
 import { ID_ALPHABET } from '../../../shared/license.ts';
-import { BACKUP_DIR, createAutoBackup } from './autoBackup.ts';
-import { adoptBackupCode, storedLicenseCode } from './license.ts';
+import { BACKUP_DIR, createAutoBackup, projectFingerprint } from './autoBackup.ts';
+import { adoptBackupCode, isUnlocked, onUnlock, storedLicenseCode } from './license.ts';
 import { rerenderList } from './projects.ts';
 import { catalogSaveOff } from './catalog.ts';
 import { WH_NO_COLOR, WarehouseMatcher, saveWarehouse, whNormalizeRemnant, wh } from './warehouse.ts';
@@ -28,12 +28,17 @@ function buildBackup(ids?: number[]) {
            catalogOff:[...S.catalogOff],
            warehouse:{ kerfThickness:wh.matcher.kerfThickness, remnants:S.warehouseRemnants },
            cuttingSettings:S.cutting,
-           // код привязан к ID устройства — на чужом телефоне не подойдёт; после переустановки ID тот же (license.ts)
-           licenseCode:storedLicenseCode() };
+           // только в полной копии (автокопия, «все проекты»): выборочный экспорт отправляют клиентам и коллегам.
+           // Код привязан к ID устройства, после переустановки ID тот же (license.ts)
+           ...(Array.isArray(ids) ? {} : { licenseCode:storedLicenseCode() }) };
 }
 
 // ===== Автокопия в «Документы/GeoRomb» (переживает удаление приложения) =====
-const BACKUP_TAG_KEY = 'iwd.backupTag.v1';
+const BACKUP_TAG_KEY = 'iwd.backupTag.v1', BACKUP_DECLINED_KEY = 'iwd.backupDeclined.v1';
+const declinedFlag = {
+  get: (): boolean => { try{ return localStorage.getItem(BACKUP_DECLINED_KEY) === '1'; }catch{ return false; } },
+  set: (): void => { try{ localStorage.setItem(BACKUP_DECLINED_KEY, '1'); }catch{ /* без сохранения */ } }
+};
 function backupTag(): string {
   let t: string | null = null;
   try{ t = localStorage.getItem(BACKUP_TAG_KEY); }catch{ /* нет хранилища */ }
@@ -49,8 +54,14 @@ function backupTag(): string {
 export function initAutoBackup(): void {
   const plugins = nativePlugins();
   if(!plugins || !plugins.Filesystem) return;
-  const ab = createAutoBackup({ fs: plugins.Filesystem, tag: backupTag(), getJson: () => JSON.stringify(buildBackup(), null, 1) });
-  onDataChanged(() => ab.schedule());
+  const ab = createAutoBackup({
+    fs: plugins.Filesystem, tag: backupTag(), getJson: () => JSON.stringify(buildBackup(), null, 1),
+    canRun: isUnlocked,                                  // не поверх экрана активации
+    declined: declinedFlag,
+    beforeAsk: () => showToast('Разрешите доступ к памяти — туда сохраняется копия проектов', 4000)
+  });
+  onDataChanged(ab.schedule);
+  onUnlock(() => { void ab.flush(); });
   if(plugins.App) plugins.App.addListener('pause', () => { void ab.flush(); });
   const sub = document.getElementById('exportRowSub');
   if(sub) sub.textContent = 'Сохранить в файл. Автокопия: Документы/' + BACKUP_DIR;
@@ -211,7 +222,8 @@ export async function importProjectsFromFile(input: HTMLInputElement): Promise<v
     if(!data || data.format !== BACKUP_FORMAT || !Array.isArray(data.projects)){ showToast('Это не файл резервной копии проектов'); return; }
 
     const used = new Set(S.projects.map(p => Number(p.number)));
-    let added = 0, skipped = 0;
+    const have = new Set(S.projects.map(projectFingerprint));   // повторный импорт той же копии не дублирует проекты
+    let added = 0, skipped = 0, dups = 0;
     const fresh: Project[] = [];
     (data.projects as unknown[]).slice(0, IMPORT_MAX_PROJECTS).forEach(raw => {
       const src = raw as Raw | null;
@@ -235,10 +247,13 @@ export async function importProjectsFromFile(input: HTMLInputElement): Promise<v
         const el = cleanElement(e, project);
         if(el) project.elements.push(el); else skipped++;
       });
+      const fp = projectFingerprint(project);
+      if(have.has(fp)){ dups++; return; }
+      have.add(fp);
       fresh.push(project);
       added++;
     });
-    if(added === 0){ showToast('В файле нет проектов'); return; }
+    if(added === 0 && !dups){ showToast('В файле нет проектов'); return; }
     S.projects = fresh.concat(S.projects);               // импортированные — сверху
     let msg = '';
     if(data.priceSettings && pricesAreUntouched()){
@@ -280,7 +295,8 @@ export async function importProjectsFromFile(input: HTMLInputElement): Promise<v
     saveProjects();
     rerenderList();
     if(await adoptBackupCode(data.licenseCode)) msg += ' Активация восстановлена.';
-    showToast('Импортировано проектов: ' + added + (skipped ? ' (пропущено элементов: ' + skipped + ')' : '') + '.' + msg);
+    showToast('Импортировано проектов: ' + added + (skipped ? ' (пропущено элементов: ' + skipped + ')' : '')
+      + (dups ? ', уже были: ' + dups : '') + '.' + msg);
   }catch(err){
     console.error(err);
     showToast('Не удалось прочитать файл');

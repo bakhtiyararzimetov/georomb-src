@@ -40,12 +40,23 @@ export interface AutoBackupOptions {
   tag: string;                 // метка установки
   now?: () => Date;
   delayMs?: number;            // пауза после последнего изменения
+  canRun?: () => boolean;      // false — пока нельзя (экран активации): изменения копятся, запись позже
+  declined?: { get(): boolean; set(): void };   // «в разрешении на память отказали» — помним между запусками
+  beforeAsk?: () => void;      // объяснить пользователю, зачем сейчас появится системный запрос
+}
+
+/**
+ * Отпечаток проекта для поиска повторов при восстановлении: без id, номеров и nid —
+ * они меняются при каждом импорте, а содержимое (имя, дата, размеры, деления) — нет.
+ */
+export function projectFingerprint(p: unknown): string {
+  return JSON.stringify(p, (k, v) => (k === 'id' || k === 'number' || k === 'nid' || k === 'history' || k === 'redo') ? undefined : v);
 }
 
 export function createAutoBackup(o: AutoBackupOptions): { schedule(): void; flush(): Promise<boolean> } {
   const now = o.now || (() => new Date());
   const delay = o.delayMs ?? 3000;
-  let dirty = false, timer: ReturnType<typeof setTimeout> | null = null, permAsked = false;
+  let dirty = false, timer: ReturnType<typeof setTimeout> | null = null;
   let chain: Promise<boolean> = Promise.resolve(false);
 
   async function write(path: string, data: string): Promise<void> {
@@ -60,22 +71,29 @@ export function createAutoBackup(o: AutoBackupOptions): { schedule(): void; flus
       }
     }catch{ /* папку не прочитать — старые копии останутся */ }
   }
+  // Android ≤ 10: без разрешения плагин сам показывает системный диалог на каждый вызов — поэтому проверяем
+  // заранее, спрашиваем один раз, а при отказе запоминаем и файлы больше не трогаем. На Android 11+ всегда granted.
+  async function permitted(): Promise<boolean> {
+    if(o.declined && o.declined.get()) return false;
+    if(!o.fs.checkPermissions) return true;
+    try{
+      if((await o.fs.checkPermissions()).publicStorage === 'granted') return true;
+      if(o.fs.requestPermissions){
+        if(o.beforeAsk) o.beforeAsk();
+        if((await o.fs.requestPermissions()).publicStorage === 'granted') return true;
+      }
+    }catch{ /* считаем отказом */ }
+    if(o.declined) o.declined.set();
+    return false;
+  }
   async function run(): Promise<boolean> {
-    if(!dirty) return false;
+    if(!dirty || (o.canRun && !o.canRun())) return false;
+    if(!(await permitted())){ dirty = false; return false; }
     dirty = false;
     const today = now();
     const path = BACKUP_DIR + '/' + backupFileName(today, o.tag);
-    const data = o.getJson();
     try{
-      try{ await write(path, data); }
-      catch(err){
-        // Android ≤ 10: без разрешения на память запись падает — спрашиваем один раз за сеанс и повторяем
-        if(permAsked || !o.fs.checkPermissions || !o.fs.requestPermissions) throw err;
-        permAsked = true;
-        const p = await o.fs.checkPermissions();
-        if(p.publicStorage === 'granted' || (await o.fs.requestPermissions()).publicStorage !== 'granted') throw err;
-        await write(path, data);
-      }
+      await write(path, o.getJson());
     }catch(err){
       console.warn('Автокопия не сохранена:', err);
       return false;                          // dirty уже сброшен: следующее изменение попробует снова
@@ -84,16 +102,15 @@ export function createAutoBackup(o: AutoBackupOptions): { schedule(): void; flus
     return true;
   }
 
-  return {
-    schedule(): void {
-      dirty = true;
-      if(timer) clearTimeout(timer);
-      timer = setTimeout(() => { timer = null; void this.flush(); }, delay);
-    },
-    flush(): Promise<boolean> {
-      if(timer){ clearTimeout(timer); timer = null; }
-      chain = chain.then(run, run);
-      return chain;
-    }
-  };
+  function flush(): Promise<boolean> {
+    if(timer){ clearTimeout(timer); timer = null; }
+    chain = chain.then(run, run);
+    return chain;
+  }
+  function schedule(): void {
+    dirty = true;
+    if(timer) clearTimeout(timer);
+    timer = setTimeout(() => { timer = null; void flush(); }, delay);
+  }
+  return { schedule, flush };
 }

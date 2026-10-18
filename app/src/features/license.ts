@@ -80,9 +80,14 @@ function showLock(msg: string, compact?: boolean): void {
   $('licenseMsg').className = 'license-msg';
   $('licenseMsg').textContent = msg || '';
 }
+const unlockListeners: (() => void)[] = [];
+/** Вызывается, когда приложение разблокировано (после проверки кода или списка). */
+export function onUnlock(cb: () => void): void { unlockListeners.push(cb); }
+export const isUnlocked = (): boolean => $('licenseLock').style.display === 'none';
 function unlock(exp: string): void {
   $('licenseLock').style.display = 'none';
   window.licenseInfo = { id:deviceId, exp };
+  unlockListeners.forEach(cb => { try{ cb(); }catch{ /* слушатель не должен ломать разблокировку */ } });
 }
 async function licCheck(): Promise<void> {
   if(revIsRevoked()){ showLock(WHY.revoked, true); return; }
