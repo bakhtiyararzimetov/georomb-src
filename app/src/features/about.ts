@@ -2,7 +2,7 @@
 import { $ } from '../ui/dom.ts';
 
 // версия приложения — меняйте при каждом выпуске (её же показывает package.json)
-export const APP_VERSION = '1.01';
+export const APP_VERSION = '1.2';
 // контакты: Telegram — ник без @, WhatsApp — номер без «+»
 export const CONTACT = { tg:'Bakhtiyar124', wa:'77479453926' };
 

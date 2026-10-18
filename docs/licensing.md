@@ -25,16 +25,17 @@ npm run license -- extend ABCDE-23456 --days 30                   # продли
 npm run license -- add-list ABCDE-23456 --days 30                 # активация без кода
 npm run license -- revoke ABCDE-23456                             # отозвать
 npm run license -- unrevoke ABCDE-23456                           # вернуть
+npm run license -- remove ABCDE-23456                             # удалить из базы
 npm run license -- build --out revoked.json                       # собрать и подписать список
 npm run license -- verify revoked.json                            # проверить подпись
 npm run license -- verify-code ABCDE-23456 <код>                  # проверить код
 ```
 
-После `build` загрузите `revoked.json` в `~/georomb-pages` и сделайте push. **Не правьте файл руками:** подпись перестанет сходиться, и приложение отвергнет список.
+Собранный `revoked.json` в корне проекта исключён из git. Скопируйте его в `~/georomb-pages` и сделайте push. **Не правьте файл руками:** подпись перестанет сходиться, и приложение отвергнет список.
 
 ## Где хранятся секреты
 
 - `keys/private.jwk.json` — закрытый ключ. Кто им владеет, тот может выдавать коды.
 - `backend/data/` — база выданных кодов.
 
-Обе папки исключены из git. Храните их резервную копию отдельно (см. [SECURITY.md](../SECURITY.md)).
+Пути можно поменять переменными `GEOROMB_KEY` и `GEOROMB_DB`. Обе папки исключены из git. Храните их резервную копию отдельно (см. [SECURITY.md](../SECURITY.md)).

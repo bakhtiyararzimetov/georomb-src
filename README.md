@@ -29,7 +29,7 @@
   <img src="assets/screenshots/project.png" alt="Проект: окна и двери" width="23%">
   <img src="assets/screenshots/3d.png" alt="3D-вид окна" width="23%">
   <img src="assets/screenshots/cutting.png" alt="Раскрой профиля" width="23%">
-  <img src="assets/screenshots/pdf.png" alt="PDF для клиента" width="23%">
+  <img src="assets/screenshots/pdf.png" alt="PDF из API для бота" width="23%">
 </p>
 
 ## Возможности

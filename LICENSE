@@ -5,7 +5,7 @@ Copyright (c) 2026 Bakhtiyar Arzimetov. Все права защищены. All 
 РУССКИЙ
 
 Программа GeoRomb, включая исходный код, сборки (APK), графику, тексты,
-справочники профилей и цветов и документацию (далее — «Программа»),
+собственные справочники профилей и документацию (далее — «Программа»),
 является объектом авторского права и принадлежит правообладателю.
 
 1. Без письменного разрешения правообладателя запрещается копировать,
@@ -15,9 +15,10 @@ Copyright (c) 2026 Bakhtiyar Arzimetov. Все права защищены. All 
 2. Запрещается обходить, отключать или изменять систему лицензирования
    и активации Программы, а также декомпилировать и дизассемблировать
    Программу, кроме случаев, прямо разрешённых законом.
-3. Пользователь, получивший Программу и действующий код активации от
-   правообладателя, может пользоваться Программой на своём устройстве
-   на условиях, сообщённых правообладателем при активации.
+3. Пользователь, чьё устройство активировал правообладатель (кодом
+   активации или добавлением в список активированных устройств), может
+   пользоваться Программой на этом устройстве на условиях и в сроки,
+   сообщённые правообладателем при активации.
 4. Доступ к этому репозиторию не даёт никаких прав, кроме права
    просматривать код в рамках работы, согласованной с правообладателем.
 5. Программа предоставляется «как есть», без каких-либо гарантий.
@@ -30,7 +31,7 @@ Copyright (c) 2026 Bakhtiyar Arzimetov. Все права защищены. All 
 ENGLISH
 
 GeoRomb, including its source code, builds (APK), graphics, texts,
-profile and color catalogs and documentation (the "Software"), is
+its own profile catalogs and documentation (the "Software"), is
 protected by copyright and is owned by the copyright holder.
 
 1. Copying, modifying, distributing, publishing, selling, renting or
@@ -40,9 +41,10 @@ protected by copyright and is owned by the copyright holder.
 2. Circumventing, disabling or modifying the licensing and activation
    system, and decompiling or disassembling the Software, are prohibited
    except where expressly permitted by law.
-3. A user who received the Software and a valid activation code from the
-   copyright holder may use the Software on their own device under the
-   terms communicated by the copyright holder at activation.
+3. A user whose device has been activated by the copyright holder (with
+   an activation code or by adding it to the list of activated devices)
+   may use the Software on that device under the terms and for the period
+   communicated by the copyright holder at activation.
 4. Access to this repository grants no rights other than viewing the code
    for work agreed with the copyright holder.
 5. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. The

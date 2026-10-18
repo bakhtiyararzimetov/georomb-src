@@ -1,7 +1,7 @@
 {
   "name": "georomb",
   "private": true,
-  "version": "1.0.1",
+  "version": "1.2.0",
   "type": "module",
   "description": "GeoRomb: расчёт окон (фронтенд на TypeScript + Capacitor), CLI лицензий (бэкенд для revoked.json на GitHub Pages) и API генерации PDF для WhatsApp-бота",
   "scripts": {

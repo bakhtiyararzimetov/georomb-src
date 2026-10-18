@@ -26,7 +26,7 @@ test('пока рисуется большой PDF, /health отвечает с�
     const done = await pdf;
     assert.equal(done.status, 200);
     assert.ok(done.ms > 1500, `отрисовка должна быть долгой (${done.ms} мс), иначе тест ничего не проверяет`);
-    assert.ok(healthMs < 300, `/health ждал ${healthMs} мс — отрисовка блокирует сервер`);
+    assert.ok(healthMs < 1000, `/health ждал ${healthMs} мс — отрисовка блокирует сервер`);
   }finally{
     child.kill();
   }

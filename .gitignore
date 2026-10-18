@@ -10,3 +10,5 @@ backend/data/
 .env
 # служебные папки инструментов
 .superpowers/
+# собранный npm run license -- build (публикуется в ~/georomb-pages)
+/revoked.json

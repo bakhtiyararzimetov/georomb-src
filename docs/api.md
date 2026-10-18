@@ -118,12 +118,13 @@ open("window.pdf", "wb").write(r.content)
 | 413 | `payload_too_large` | тело больше 1 МБ |
 | 503 | `server_busy` | сервер уже рисует много PDF — повторите через несколько секунд |
 | 500 | `pdf_generation_failed` | сбой при рисовании PDF; подробности в логе сервера |
+| 500 | `internal_error` | непредвиденная ошибка сервера |
 
 ## Устройство
 
 - [src/app.ts](../server/src/app.ts) — HTTP: маршруты, чтение тела, коды ошибок.
 - [src/project.ts](../server/src/project.ts) — проверка JSON → `Project` из `app/src/types.ts`.
-- [src/worker.ts](../server/src/worker.ts) — отрисовка в отдельном потоке (не больше 2 одновременно, очередь 8, лимит 60 с), чтобы сервер отвечал, пока рисуется PDF.
+- [src/worker.ts](../server/src/worker.ts) — отрисовка в отдельном потоке с лимитом 60 с, чтобы сервер отвечал, пока рисуется PDF. Не больше 2 отрисовок одновременно и очередь из 8 задаются в `createApp` ([src/app.ts](../server/src/app.ts)).
 - [src/pdf.ts](../server/src/pdf.ts) — `drawWindowAndMakePdf(project)`: проект → байты PDF. Если понадобится другая отрисовка, заменяется только эта функция.
 - [src/page.ts](../server/src/page.ts) — страница элемента в SVG. Чертёж берётся из `app/src/render`, раскладка из `app/src/model`.
 - [src/layoutJson.ts](../server/src/layoutJson.ts) — ответ для `?format=json`.
