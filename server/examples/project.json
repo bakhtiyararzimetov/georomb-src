@@ -1,0 +1,42 @@
+{
+  "name": "Иванов, ул. Навои 12",
+  "type": "pvc",
+  "phone": "+998 90 123 45 67",
+  "elements": [
+    {
+      "type": "casement",
+      "width": 1500,
+      "height": 1200,
+      "qty": 2,
+      "color": null,
+      "net": true,
+      "root": {
+        "kind": "branch",
+        "dir": "v",
+        "children": [
+          { "kind": "leaf", "fill": "glass", "opening": { "type": "TiltTurn", "hinge": "left" } },
+          { "kind": "leaf", "fill": "glass", "opening": null }
+        ]
+      }
+    },
+    {
+      "type": "casement",
+      "width": 800,
+      "height": 2000,
+      "qty": 1,
+      "root": {
+        "kind": "leaf",
+        "opening": { "type": "Door", "hinge": "right" },
+        "inner": {
+          "kind": "branch",
+          "dir": "h",
+          "sizes": [1200, 556],
+          "children": [
+            { "kind": "leaf", "fill": "glass" },
+            { "kind": "leaf", "fill": "panelH" }
+          ]
+        }
+      }
+    }
+  ]
+}

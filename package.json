@@ -8,7 +8,7 @@
     "dev": "vite --config app/vite.config.ts",
     "build": "npm run typecheck && vite build --config app/vite.config.ts",
     "preview": "vite preview --config app/vite.config.ts",
-    "typecheck": "tsc -p app/tsconfig.json && tsc -p backend/tsconfig.json",
+    "typecheck": "tsc -p app/tsconfig.json && tsc -p backend/tsconfig.json && tsc -p server/tsconfig.json",
     "cap:copy": "node scripts/copy-to-capacitor.ts",
     "license": "node backend/src/cli.ts"
   },
