@@ -24,6 +24,7 @@ georomb/
 │       ├── ui/               DOM-помощники и общие диалоги
 │       └── styles/app.css
 ├── backend/src/              CLI лицензий (Node + TypeScript)
+├── server/                   API для WhatsApp-бота: JSON проекта → PDF (см. server/README.md)
 ├── shared/license.ts         формат кодов и подписи — общий для приложения и бэкенда
 └── scripts/copy-to-capacitor.ts
 ```
