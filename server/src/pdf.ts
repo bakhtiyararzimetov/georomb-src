@@ -4,7 +4,8 @@ import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { Resvg } from '@resvg/resvg-js';
 import { PDFDocument } from 'pdf-lib';
-import type { Project } from '../../app/src/types.ts';
+import type { PdfLang, Project } from '../../app/src/types.ts';
+import { setPdfLang } from '../../app/src/features/pdfI18n.ts';
 import { PAGE_FONT, PAGE_W, elementPageSvg } from './page.ts';
 
 const A4W = 595.28, A4H = 841.89;
@@ -21,15 +22,19 @@ export function renderPagePng(svg: string): Uint8Array {
 }
 
 /**
- * Проект → PDF: одна страница A4 на элемент.
+ * Проект → PDF: одна страница A4 на элемент, подписи на языке lang.
  * Сюда можно подставить другую отрисовку — серверу (app.ts) важна только сигнатура.
  */
-export async function drawWindowAndMakePdf(project: Project): Promise<Uint8Array> {
+export async function drawWindowAndMakePdf(project: Project, lang: PdfLang = 'ru'): Promise<Uint8Array> {
+  // язык — общее состояние модуля: все страницы рисуются синхронно до первого await,
+  // поэтому параллельный вызов в том же потоке не перепутает подписи
+  setPdfLang(lang);
+  const pages = project.elements.map((_, i) => renderPagePng(elementPageSvg(project, i)));
   const doc = await PDFDocument.create();
   doc.setTitle(project.name);
   doc.setCreator('GeoRomb');
-  for(let i = 0; i < project.elements.length; i++){
-    const png = await doc.embedPng(renderPagePng(elementPageSvg(project, i)));
+  for(const page of pages){
+    const png = await doc.embedPng(page);
     doc.addPage([A4W, A4H]).drawImage(png, { x: 0, y: 0, width: A4W, height: A4H });
   }
   return doc.save();

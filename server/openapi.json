@@ -1,0 +1,596 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "GeoRomb API",
+    "version": "1.0.0",
+    "description": "PDF с чертежами окон и дверей для WhatsApp-бота: одна страница A4 на элемент. Подробнее — docs/api.md."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000"
+    }
+  ],
+  "security": [
+    {
+      "ApiKey": []
+    },
+    {
+      "Bearer": []
+    }
+  ],
+  "paths": {
+    "/api/v1/generate-window-pdf": {
+      "post": {
+        "summary": "Проект → PDF (или координаты при format=json)",
+        "operationId": "generateWindowPdf",
+        "parameters": [
+          {
+            "name": "format",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pdf",
+                "json"
+              ],
+              "default": "pdf"
+            }
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "description": "Язык подписей PDF",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ru",
+                "uz",
+                "ky"
+              ],
+              "default": "ru"
+            }
+          },
+          {
+            "name": "X-Request-Id",
+            "in": "header",
+            "description": "Свой номер запроса (до 64 знаков: буквы, цифры, . _ : -); вернётся в ответе и в логе",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Project"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "PDF (format=pdf) или JSON с координатами в мм (format=json)",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_json, invalid_project, invalid_format, invalid_lang, bad_request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "unauthorized — нет ключа или он неверный",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "not_found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "method_not_allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "payload_too_large — тело больше 1 МБ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "rate_limited — превышен лимит запросов в минуту",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                },
+                "description": "через сколько секунд повторить"
+              }
+            }
+          },
+          "500": {
+            "description": "pdf_generation_failed, internal_error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "server_busy — повторите через несколько секунд",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Сервер жив",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/openapi.json": {
+      "get": {
+        "summary": "Это описание",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "OpenAPI 3.1"
+          }
+        }
+      }
+    },
+    "/api/generate-window-pdf": {
+      "post": {
+        "summary": "Старый адрес, то же самое",
+        "operationId": "generateWindowPdfLegacy",
+        "parameters": [
+          {
+            "name": "format",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pdf",
+                "json"
+              ],
+              "default": "pdf"
+            }
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "description": "Язык подписей PDF",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ru",
+                "uz",
+                "ky"
+              ],
+              "default": "ru"
+            }
+          },
+          {
+            "name": "X-Request-Id",
+            "in": "header",
+            "description": "Свой номер запроса (до 64 знаков: буквы, цифры, . _ : -); вернётся в ответе и в логе",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Project"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "PDF (format=pdf) или JSON с координатами в мм (format=json)",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_json, invalid_project, invalid_format, invalid_lang, bad_request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "unauthorized — нет ключа или он неверный",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "not_found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "method_not_allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "payload_too_large — тело больше 1 МБ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "rate_limited — превышен лимит запросов в минуту",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                },
+                "description": "через сколько секунд повторить"
+              }
+            }
+          },
+          "500": {
+            "description": "pdf_generation_failed, internal_error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "server_busy — повторите через несколько секунд",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "deprecated": true
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "ApiKey": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key"
+      },
+      "Bearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "required": [
+          "error",
+          "message"
+        ],
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "код ошибки"
+          },
+          "message": {
+            "type": "string",
+            "description": "что не так, по-русски"
+          },
+          "requestId": {
+            "type": "string"
+          }
+        }
+      },
+      "Project": {
+        "type": "object",
+        "required": [
+          "elements"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "default": "Проект"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "pvc",
+              "alu"
+            ],
+            "default": "pvc"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "elements": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 50,
+            "items": {
+              "$ref": "#/components/schemas/Element"
+            }
+          }
+        }
+      },
+      "Element": {
+        "type": "object",
+        "required": [
+          "width",
+          "height"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "casement",
+              "sliding",
+              "sill"
+            ],
+            "default": "casement"
+          },
+          "width": {
+            "type": "number",
+            "minimum": 10,
+            "maximum": 10000,
+            "description": "мм (у окна от 100)"
+          },
+          "height": {
+            "type": "number",
+            "minimum": 10,
+            "maximum": 10000,
+            "description": "мм (у окна от 100)"
+          },
+          "qty": {
+            "type": "number",
+            "default": 1
+          },
+          "net": {
+            "type": "boolean",
+            "description": "москитная сетка"
+          },
+          "root": {
+            "$ref": "#/components/schemas/Node"
+          }
+        }
+      },
+      "Node": {
+        "type": "object",
+        "description": "Часть окна (лист) или деление (ветка). Без kind: есть children — ветка, иначе лист.",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "leaf",
+              "branch"
+            ]
+          },
+          "fill": {
+            "type": "string",
+            "enum": [
+              "glass",
+              "panelV",
+              "panelH"
+            ],
+            "default": "glass"
+          },
+          "opening": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "Turn",
+                      "Tilt",
+                      "TiltTurn",
+                      "Door",
+                      "Sliding",
+                      "FixSliding"
+                    ]
+                  },
+                  "hinge": {
+                    "type": "string",
+                    "enum": [
+                      "left",
+                      "right",
+                      "top",
+                      "bottom"
+                    ]
+                  }
+                }
+              }
+            ],
+            "description": "null — глухая часть"
+          },
+          "inner": {
+            "$ref": "#/components/schemas/Node",
+            "description": "деление внутри створки (например, дверь: стекло сверху, панель снизу)"
+          },
+          "dir": {
+            "type": "string",
+            "enum": [
+              "v",
+              "h"
+            ],
+            "description": "v — части рядом слева направо, h — сверху вниз"
+          },
+          "sizes": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "description": "размеры частей в мм; без него — поровну"
+          },
+          "children": {
+            "type": "array",
+            "minItems": 2,
+            "items": {
+              "$ref": "#/components/schemas/Node"
+            }
+          }
+        }
+      }
+    }
+  }
+}

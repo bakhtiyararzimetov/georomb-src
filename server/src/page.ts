@@ -20,11 +20,12 @@ export function escapeXml(s: unknown): string {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 }
 interface TextOpts { bold?: boolean; color?: string; anchor?: 'start' | 'middle' | 'end'; maxW?: number; rotate?: boolean; }
-// ширина текста DejaVu Sans на глаз (canvas measureText тут нет): ~0.6 em на знак.
+// ширина текста DejaVu Sans на глаз (canvas measureText тут нет): ~0.6 em на знак, жирный — ~0.7 (цифры 0.696).
 // Длиннее maxW — сначала уменьшаем шрифт до 0.75, потом сжимаем textLength до 0.8, дальше обрезаем с «…».
-const EM = 0.6, MIN_FONT = 0.75, MIN_SQUEEZE = 0.8;
+const MIN_FONT = 0.75, MIN_SQUEEZE = 0.8;
 function text(s: unknown, x: number, y: number, size: number, o: TextOpts = {}): string {
   let t = String(s), fit = '';
+  const EM = o.bold ? 0.7 : 0.6;
   if(o.maxW){
     if(t.length * size * EM > o.maxW) size = Math.max(Math.round(size * MIN_FONT), Math.floor(o.maxW / (t.length * EM)));
     const maxChars = Math.floor(o.maxW / (size * EM * MIN_SQUEEZE));
@@ -124,7 +125,7 @@ export function elementPageSvg(project: Project, idx: number): string {
     const g = elementGeometry(e, project.type === 'alu' ? 'alu' : 'pvc');   // как в смете: длина и ширина полки
     rows.push([pdfT('sill'), fmtNum(g.sillLen * qty, 2) + ' ' + pdfT('m') + ' × ' + g.sillWidth + ' ' + pdfT('cm')]);
   }
-  if(e.net) rows.push([pdfT('net'), 'есть']);
+  if(e.net) rows.push([pdfT('net'), pdfT('yes')]);
   rows.forEach((r, i) => {
     const y = 1382 + i * 54;
     p.push(text(r[0], M, y, 30, { color: GREY }));

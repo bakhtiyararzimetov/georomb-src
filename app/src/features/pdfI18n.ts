@@ -24,6 +24,7 @@ const DICT = {
   sashes:          ['Створки', 'Tabaqalar', 'Канаттар'],
   andMore:         ['… и ещё', '… va yana', '… жана дагы'],
   net:             ['Москитная сетка', 'Chivin toʻri', 'Чиркей тору'],
+  yes:             ['есть', 'bor', 'бар'],
   price:           ['Цена', 'Narx', 'Баасы'],
   pcs:             ['шт', 'dona', 'даана'],
   mm:              ['мм', 'mm', 'мм'],
@@ -128,6 +129,8 @@ function loadPdfOptions(): PdfOptions {
   return d;
 }
 export const pdfOpts = (): PdfOptions => opts;
+/** Язык подписей без сохранения в настройки (сервер API: свой поток на каждый PDF). */
+export function setPdfLang(lang: PdfLang): void { opts.lang = lang; }
 export const pdfT = (k: PdfKey): string => DICT[k][IDX[opts.lang]];
 export const pdfRole = (role: string, ru: string): string => ROLE[role] ? ROLE[role][IDX[opts.lang]] : ru;
 // «Подоконник, 20 см», «Отходы профиля, 3%» — переводится начало, число остаётся

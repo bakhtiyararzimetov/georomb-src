@@ -1,0 +1,10 @@
+# в образ — только package*.json, app/src, shared, server (см. Dockerfile)
+node_modules
+.git
+.env
+keys
+backend/data
+*.jks
+app/dist
+docs
+**/test

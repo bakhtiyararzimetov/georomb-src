@@ -53,7 +53,7 @@
 npm install
 npm run dev          # приложение в браузере: http://localhost:5173
 npm test             # тесты
-npm run server       # API для бота: http://localhost:3000/api/generate-window-pdf
+npm run server       # API для бота: http://localhost:3000/api/v1/generate-window-pdf
 ```
 
 Сборка APK, выпуск версии и все команды — [docs/development.md](docs/development.md).

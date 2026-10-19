@@ -6,29 +6,61 @@ od# API: PDF окна для WhatsApp-бота
 
 ```bash
 npm install
-npm run server                 # http://0.0.0.0:3000/api/generate-window-pdf
+npm run server                 # http://0.0.0.0:3000/api/v1/generate-window-pdf
 PORT=8080 npm run server       # другой порт
 npm test                       # тесты API
 ```
+
+Настройки задаются переменными окружения или в файле `.env` (образец — [.env.example](../.env.example)):
+
+| Переменная | По умолчанию | Что делает |
+|---|---|---|
+| `PORT`, `HOST` | `3000`, `0.0.0.0` | адрес сервера |
+| `API_KEYS` | пусто | ключи доступа через запятую; пусто — API открыт всем (только для своего компьютера) |
+| `RATE_LIMIT` | `60` | запросов в минуту на ключ (без ключей — на IP); `0` — без лимита |
+| `TRUST_PROXY` | `0` | `1` — сервер стоит за своим прокси (nginx, Render, Railway), IP клиента берётся из `X-Forwarded-For` |
+
+Ключ можно создать так: `node -e "console.log(crypto.randomBytes(24).toString('base64url'))"`. Каждому боту лучше выдать свой ключ: у каждого будет свой лимит, и один ключ можно отключить, не трогая остальные.
+
+### Docker
+
+```bash
+docker build -t georomb-api .
+docker run -p 3000:3000 -e API_KEYS=<ключ> georomb-api
+```
+
+В образе только сервер и нужные ему файлы `app/src`; контейнер проверяет себя через `/health` и при остановке дорисовывает начатые PDF.
 
 Нужен Node.js 26 или новее: он запускает `.ts` без сборки.
 
 ## Запрос
 
-`POST /api/generate-window-pdf`, заголовок `Content-Type: application/json`, тело — проект (формат ниже).
+`POST /api/v1/generate-window-pdf`, заголовок `Content-Type: application/json`, тело — проект (формат ниже).
 
 | Параметр | Ответ |
 |---|---|
 | без параметра | `200`, `Content-Type: application/pdf`, `Content-Disposition: attachment; filename="georomb.pdf"; filename*=UTF-8''<имя проекта>.pdf` |
 | `?format=json` | `200`, JSON с координатами рамы, проёмов и импостов в мм (если бот хочет нарисовать сам) |
+| `?lang=uz` или `?lang=ky` | подписи PDF на узбекском или кыргызском (по умолчанию `ru`); названия цветов и стёкол остаются как есть |
 
-`GET /health` → `{"ok":true}`. Это проверка, что сервер жив.
+Заголовки запроса:
+- `X-API-Key: <ключ>` или `Authorization: Bearer <ключ>`, если на сервере задан `API_KEYS`;
+- `X-Request-Id: <ваш номер>` — необязательно. Он вернётся в ответе и попадёт в лог сервера; без него сервер присвоит свой. По нему удобно искать запрос в логе, когда клиент жалуется.
+
+В каждом ответе есть `X-Request-Id`, а при включённом лимите — `X-RateLimit-Limit` и `X-RateLimit-Remaining`.
+
+Старый адрес `/api/generate-window-pdf` (без `v1`) работает так же, чтобы уже написанный бот не сломался. Новым ботам — `/api/v1/…`.
+
+Полное машиночитаемое описание: `GET /openapi.json` (OpenAPI 3.1). Его можно открыть в [Swagger Editor](https://editor.swagger.io) или сгенерировать по нему клиент.
+
+`GET /health` → `{"ok":true}`. Это проверка, что сервер жив; ключ не нужен.
 
 ### cURL
 
 ```bash
-curl -X POST http://localhost:3000/api/generate-window-pdf \
+curl -X POST http://localhost:3000/api/v1/generate-window-pdf \
   -H "Content-Type: application/json" \
+  -H "X-API-Key: $GEOROMB_API_KEY" \
   --data-binary @server/examples/project.json \
   -o window.pdf
 ```
@@ -36,7 +68,7 @@ curl -X POST http://localhost:3000/api/generate-window-pdf \
 Минимальный запрос: окно 1500×1200, слева поворотно-откидная створка, справа глухое стекло.
 
 ```bash
-curl -X POST http://localhost:3000/api/generate-window-pdf \
+curl -X POST http://localhost:3000/api/v1/generate-window-pdf \
   -H "Content-Type: application/json" \
   -d '{"name":"Клиент +998901234567","elements":[{"width":1500,"height":1200,"root":{"kind":"branch","dir":"v","children":[{"kind":"leaf","opening":{"type":"TiltTurn","hinge":"left"}},{"kind":"leaf"}]}}]}' \
   -o window.pdf
@@ -45,9 +77,9 @@ curl -X POST http://localhost:3000/api/generate-window-pdf \
 ### Node.js (бот)
 
 ```js
-const res = await fetch('http://localhost:3000/api/generate-window-pdf', {
+const res = await fetch('http://localhost:3000/api/v1/generate-window-pdf', {
   method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
+  headers: { 'Content-Type': 'application/json', 'X-API-Key': process.env.GEOROMB_API_KEY },
   body: JSON.stringify(project)
 });
 if (!res.ok) {
@@ -60,8 +92,9 @@ const pdf = Buffer.from(await res.arrayBuffer());  // → отправить к�
 ### Python (бот)
 
 ```python
-import requests
-r = requests.post("http://localhost:3000/api/generate-window-pdf", json=project, timeout=60)
+import os, requests
+r = requests.post("http://localhost:3000/api/v1/generate-window-pdf", json=project, timeout=60,
+                  headers={"X-API-Key": os.environ["GEOROMB_API_KEY"]})
 if r.status_code != 200:
     raise RuntimeError(f"{r.status_code} {r.json()['error']}: {r.json()['message']}")
 open("window.pdf", "wb").write(r.content)
@@ -105,13 +138,16 @@ open("window.pdf", "wb").write(r.content)
 
 ## Ошибки
 
-Ответ с ошибкой всегда JSON: `{"error": "<код>", "message": "<что не так, по-русски>"}`.
+Ответ с ошибкой всегда JSON: `{"error": "<код>", "message": "<что не так, по-русски>", "requestId": "<номер запроса>"}`.
 
 | HTTP | `error` | Когда |
 |---|---|---|
 | 400 | `invalid_json` | тело не разбирается как JSON |
 | 400 | `invalid_project` | JSON разбирается, но проект плохой: нет `elements`, размер вне диапазона, неизвестный тип открывания, части не помещаются. В `message` указан номер элемента |
 | 400 | `invalid_format` | `?format=` не `pdf` и не `json` |
+| 400 | `invalid_lang` | `?lang=` не `ru`, `uz` и не `ky` |
+| 401 | `unauthorized` | нет ключа или он неверный (если на сервере задан `API_KEYS`) |
+| 429 | `rate_limited` | превышен лимит запросов в минуту; заголовок `Retry-After` — через сколько секунд повторить |
 | 404 | `not_found` | другой адрес |
 | 405 | `method_not_allowed` | не POST |
 | 400 | `bad_request` | некорректный адрес запроса |
