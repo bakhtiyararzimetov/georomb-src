@@ -56,3 +56,9 @@ test('отдельный подоконник без глубины — та ж�
   const sill = extractCuttingGroups(p).find(g => g.role === 'sill')!;
   assert.match(sill.roleLabel, /200 мм/);
 });
+
+test('длины деталей — без дробной части, как в romchi (1506,5 → 1506)', () => {
+  const p: Project = { id: 1, name: '', date: '', type: 'pvc', elements: [el(1, null, { width: 1500.5 })] };
+  const frame = extractCuttingGroups(p).find(g => g.role === 'frame')!;
+  assert.ok(frame.pieces.some(pc => pc.lengthMm === 1506), JSON.stringify(frame.pieces));
+});

@@ -23,9 +23,6 @@ function checkInvariants(pieces: number[], L: number, k: number, scraps: Scrap[]
       assert.ok(need <= p.len + 1e-9, `${v.name}: хлыст ${p.len} переполнен (${p.cuts.join('+')})`);
       if(p.scrap){
         assert.ok(scraps.some(s => s.uid === p.scrap!.uid && s.len === p.len), 'чужой остаток');
-        // подрезка: хвост остатка либо ≤ trimMax (в отход), либо ≥ мин. обрезка
-        const tail = p.len - p.cuts.reduce((a, c) => a + c + k, 0);
-        assert.ok(tail <= P.trimMax || tail >= P.minScrap, `${v.name}: хвост остатка ${tail} мм между подрезкой и мин. обрезком`);
       }
       assert.equal(p.usable, p.left >= P.minScrap);
     }
@@ -45,7 +42,7 @@ test('случайные наборы: инварианты всех вариа�
   }
 });
 
-test('случайные наборы со складом: остатки не используются дважды, подрезка соблюдена', () => {
+test('случайные наборы со складом: остатки не используются дважды', () => {
   const rnd = rng(11);
   for(let it = 0; it < 40; it++){
     const pieces = Array.from({ length: 1 + Math.floor(rnd() * 15) }, () => 300 + Math.floor(rnd() * 1500));
@@ -68,10 +65,13 @@ test('пропил 0: две детали по 3000 из хлыста 6000', () 
   assert.equal(cutOptimize([3000, 3000], 6000, { ...C, k: 0 }, [], 0).variants[0].newBars, 1);
 });
 
-test('пропил 5: 4×1496 = 5984 + 3 пропила = 5999 ≤ 6000 — один хлыст',
-  { todo: 'БАГ: упаковка считает пропил ПОСЛЕ последней детали (len + k ≤ L), хотя cutBinStats и описание модуля его не считают — лишний хлыст' }, () => {
-  const r = cutOptimize([1496, 1496, 1496, 1496], 6000, C, [], 0);
-  assert.equal(r.variants[0].newBars, 1);
+test('пропил только между деталями (как romchi): 4×1496 = 5984 + 3 пропила = 5999 ≤ 6000 — один хлыст', () => {
+  for(const v of cutOptimize([1496, 1496, 1496, 1496], 6000, C, [], 0).variants) assert.equal(v.newBars, 1, v.name);
+  assert.equal(cutOptimize([1497, 1497, 1497, 1497], 6000, C, [], 0).variants[0].newBars, 2, '5988 + 15 = 6003 — не влезает');
+});
+
+test('пропил между деталями: 3000 + 2995 + пропил = 6000 — один хлыст во всех вариантах', () => {
+  for(const v of cutOptimize([3000, 2995], 6000, C, [], 0).variants) assert.equal(v.newBars, 1, v.name);
 });
 
 test('дробный пропил 2,5 мм: остаток склада 1050 мм берётся под деталь 1000 мм', () => {
@@ -110,4 +110,60 @@ test('дробный пропил не замедляет точный подб�
 test('«Длинная + добор» с дробным пропилом находит точную укладку (3000 + 2995, пропил 2,5)', () => {
   const r = cutOptimize([3000, 2995], 6000, { ...C, k: 2.5 }, [], 0);
   for(const v of r.variants) assert.equal(v.newBars, 1, v.name);
+});
+
+// ===== склад — как WarehouseProfileMatcher в romchi: отдельный шаг до раскроя =====
+const sc = (len: number, i = 0): Scrap => ({ id: 1, uid: '1.' + i + '.' + len, len });
+const whPlans = (r: CutResult) => r.variants[0].plans.filter(p => p.scrap).map(p => [p.len, ...p.cuts]);
+
+test('склад: остаток берётся без правила подрезки (остаток 1000, деталь 900 → хвост 100 в отход)', () => {
+  const r = cutOptimize([900], 6000, C, [sc(1000)], 0);
+  assert.deepEqual(whPlans(r), [[1000, 900]]);
+  assert.equal(r.variants[0].newBars, 0);
+});
+
+test('склад: пропил только между деталями (остаток 1000: 497 + 5 + 497 = 999)', () => {
+  assert.deepEqual(whPlans(cutOptimize([497, 497], 6000, C, [sc(1000)], 0)), [[1000, 497, 497]]);
+});
+
+test('склад: деталь — в остаток, где останется меньше всего (best fit)', () => {
+  assert.deepEqual(whPlans(cutOptimize([950], 6000, C, [sc(1500, 1), sc(1000, 2)], 0)), [[1000, 950]]);
+});
+
+test('склад: начатый остаток лучше нового, если после детали в нём останется меньше', () => {
+  // 600 → остаток A (останется 400); 390 → в A останется 5, в новом B — 610: в A
+  assert.deepEqual(whPlans(cutOptimize([600, 390], 6000, C, [sc(1000, 1), sc(1000, 2)], 0)), [[1000, 600, 390]]);
+});
+
+test('склад: детали от длинных к коротким, оставшиеся — в новые хлысты', () => {
+  const r = cutOptimize([2500, 800, 700], 6000, C, [sc(900)], 0);
+  assert.deepEqual(whPlans(r), [[900, 800]], 'длинная 2500 не влезает, 800 — первой из подходящих');
+  assert.equal(r.variants[0].newBars, 1);
+  assert.deepEqual(r.variants[0].plans.filter(p => !p.scrap).flatMap(p => p.cuts).sort(), [2500, 700].sort());
+});
+
+test('склад: все варианты используют одни и те же остатки', () => {
+  const r = cutOptimize([1200, 900, 3000, 2000, 450], 6000, C, [sc(1000, 1), sc(1300, 2)], 0);
+  const first = JSON.stringify(whPlans(r));
+  for(const v of r.variants) assert.equal(JSON.stringify(v.plans.filter(p => p.scrap).map(p => [p.len, ...p.cuts])), first, v.name);
+});
+
+// ===== выбор лучшего варианта — как selectTop5 в romchi =====
+test('при равных хлыстах и отходе первым — вариант с меньшим числом деловых обрезков', () => {
+  // [2900+2900+100 | 3000] — один деловой обрезок; [2900+2900 | 3000+100] — два
+  const v = cutOptimize([3000, 2900, 2900, 100], 6000, C, [], 0).variants[0];
+  assert.equal(v.newBars, 2);
+  assert.equal(v.newScraps, 1);
+});
+
+test('результат не зависит от скорости телефона', () => {
+  const pieces = Array.from({ length: 60 }, (_, i) => 300 + ((i * 7919) % 2400));
+  const fast = cutOptimize(pieces, 6000, C, [], 350).variants.map(v => v.sig);
+  const orig = performance.now.bind(performance);
+  let t = orig();
+  performance.now = () => (t += 50);                 // «медленный телефон»: каждый вызов — +50 мс
+  try{
+    const slow = cutOptimize(pieces, 6000, C, [], 350).variants.map(v => v.sig);
+    assert.deepEqual(slow, fast);
+  }finally{ performance.now = orig; }
 });

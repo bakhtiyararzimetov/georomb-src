@@ -337,7 +337,8 @@ export function profileCutWaste(project: Project, items: ElementCost[], mode: 'f
       const key = role + '|' + (role === 'reinf' ? '' : (col ? col.code : ''));
       if(!groups.has(key)) groups.set(key, { role, lens:[] });
       const gr = groups.get(key)!;
-      for(let q = 0; q < qty; q++) lens.forEach(len => { const mm = Math.round(len); if(mm > 0) gr.lens.push(mm); });
+      // длина без дробной части — как в раскрое
+      for(let q = 0; q < qty; q++) lens.forEach(len => { const mm = Math.floor(len + 1e-9); if(mm > 0) gr.lens.push(mm); });
     });
   });
   let m = 0, cost = 0, bars = 0;

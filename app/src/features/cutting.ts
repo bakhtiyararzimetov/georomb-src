@@ -132,7 +132,7 @@ export function extractCuttingGroups(project: Project): CutGroup[] {
       };
       const grp = groups[key];
       lens.forEach(len => {
-        const mm = Math.round(len);
+        const mm = Math.floor(len + 1e-9);                // как romchi: дробная часть отбрасывается
         if(mm <= 0) return;
         grp.lenCounts[mm] = (grp.lenCounts[mm] || 0) + qty;
         grp.totalCount += qty;
@@ -391,9 +391,6 @@ export function renderCuttingScreen(): void {
         <label>Хлыст, мм
           <input id="cutUnit${mat}" type="number" min="1000" step="100" value="${cs.unitLength[mat]}" onchange="cuttingSettingChanged('Unit','${mat}')"${dis}>
         </label>
-        <label>Подрезка остатка, мм
-          <input id="cutTrimMax" type="number" min="0" step="10" value="${cs.trimMax}" onchange="cuttingSettingChanged('TrimMax')"${dis}>
-        </label>
       </div>
       <label class="cut-check"><input id="cutAlgo" type="checkbox"${cs.showAlgorithms ? ' checked' : ''} onchange="cuttingSettingChanged('Algo')"> Показывать названия алгоритмов</label>
       ${mat === 'pvc' ? `
@@ -501,7 +498,7 @@ export function renderCuttingScreen(): void {
             <div class="cut-icon">${cutIconSvg(grp.role, mat)}</div>
           </div>
           ${warn}${chips}
-          ${r.res.partial ? '<div class="cut-warn">Лимит времени — упрощённый результат</div>' : ''}
+          ${r.res.partial ? '<div class="cut-warn">Больше 300 деталей — упрощённый расчёт</div>' : ''}
           ${v.newBars <= v.lb ? '<div class="cut-badge">✓ Минимально возможное число хлыстов</div>'
             : (r.res.proven && r.sel === 0 && !v.fromWh ? '<div class="cut-badge">✓ Меньше хлыстов не бывает — проверено перебором</div>' : '')}
           ${cs.showAlgorithms ? `<div class="cut-algo"><b>${escapeHtml(v.name)}</b> — ${escapeHtml(v.desc)}</div>` : ''}
