@@ -167,3 +167,50 @@ test('результат не зависит от скорости телефо�
     assert.deepEqual(slow, fast);
   }finally{ performance.now = orig; }
 });
+
+// ===== ревью: второй ключ, «доказано», допуски =====
+test('при равном числе хлыстов варианты идут по сумме остатков без пропилов (wastePercentage romchi)', () => {
+  const rnd = rng(23);
+  for(let it = 0; it < 200; it++){
+    const pieces = Array.from({ length: 4 + Math.floor(rnd() * 14) }, () => 300 + Math.floor(rnd() * 2600));
+    const vs = cutOptimize(pieces, 6000, C, [], 0).variants;
+    for(let i = 1; i < vs.length; i++){
+      if(vs[i].newBars !== vs[i - 1].newBars) continue;
+      const left = (v: typeof vs[0]) => v.plans.reduce((a, p) => a + p.left, 0);
+      assert.ok(left(vs[i - 1]) <= left(vs[i]) + 1e-9, `${vs[i - 1].name} (${left(vs[i - 1])}) раньше ${vs[i].name} (${left(vs[i])})`);
+    }
+  }
+  const v = cutOptimize([1909, 2221, 2496, 1798, 1289, 1165, 713, 2815, 2363, 1086, 1699, 1913], 6000, C, [], 0).variants;
+  assert.ok(v.length > 1);
+});
+
+test('«доказано перебором» не врёт: 18 деталей ровно на 3 хлыста по 6000', () => {
+  const a = cutOptimize([1194, 843, 976, 541, 776, 644, 996, 857, 562, 1046, 941, 741, 1828, 1288, 1649, 770, 1176, 1097], 6000, C, [], 350);
+  assert.ok(a.variants[0].newBars === 3 || !a.proven, `хлыстов ${a.variants[0].newBars}, proven=${a.proven}`);
+  const b = cutOptimize([1477, 477, 1358, 1054, 622, 996, 1478, 989, 661, 1179, 578, 1099, 956, 1372, 621, 1341, 610, 1084], 6000, { ...C, k: 3.2 }, [], 350);
+  assert.ok(b.variants[0].newBars === 3 || !b.proven, `пропил 3,2: хлыстов ${b.variants[0].newBars}, proven=${b.proven}`);
+});
+
+test('пропил 3,2: точная укладка «в ноль» находится и простыми алгоритмами', () => {
+  const r = cutOptimize([1000, 1000, 1000, 1000, 1000, 984], 6000, { ...C, k: 3.2 }, [], 0);
+  const ffd = r.variants.find(v => v.name.startsWith('Первый подходящий')) || r.variants[0];
+  assert.equal(r.variants[0].newBars, 1);
+  for(const v of r.variants) assert.equal(v.newBars, 1, v.name);
+  assert.ok(ffd);
+});
+
+test('деталь длиннее хлыста идёт в остаток склада, если он длиннее', () => {
+  const r = cutOptimize([6200], 6000, C, [sc(6500)], 0);
+  assert.deepEqual(r.tooLong, []);
+  assert.deepEqual(whPlans(r), [[6500, 6200]]);
+});
+
+test('пустая группа (все детали длиннее хлыста) — без надписи про склад', () => {
+  const r = cutOptimize([7000], 6000, C, [], 0);
+  assert.ok(!r.variants[0].desc.includes('склад'), r.variants[0].desc);
+});
+
+test('средняя длина новых обрезков — целым делением, как в romchi', () => {
+  const v = cutOptimize([5000, 4999], 6000, C, [], 0).variants[0];   // обрезки 995 и 996 (хвост теряет пропил)
+  assert.equal(v.newScrapsAvg, 995, 'Math.round дал бы 996');
+});

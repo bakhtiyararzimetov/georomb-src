@@ -1,9 +1,10 @@
 // Оптимизатор раскроя — правила romchi (smart_cut_new/CuttingOptimizer + WarehouseProfileMatcher). Чистая логика, без DOM.
-//   • пропил — только между деталями: Σ деталей + (n − 1)·пропил ≤ хлыста. Упаковщики считают «деталь + пропил»
+//   • пропил — только между деталями, как в лучших алгоритмах romchi (Pair/Perfect/Target; его FFD/BFD считают
+//     и пропил после последней детали): Σ деталей + (n − 1)·пропил ≤ хлыста. Упаковщики считают «деталь + пропил»
 //     в хлысте длиной L + пропил — это то же условие;
 //   • склад — отдельный шаг до раскроя: детали от длинных к коротким, каждая — туда, где останется меньше всего
 //     (начатый остаток или новый), пропил между деталями, без правил подрезки и мин. обрезка;
-//   • 5 лучших: меньше хлыстов → меньше остатков и пропилов (% от длины, деловые обрезки тоже) → больше со склада
+//   • 5 лучших: меньше хлыстов → меньше остатков (% от длины, деловые обрезки тоже, без пропилов) → больше со склада
 //     → меньше новых обрезков → обрезки длиннее;
 //   • без лимита времени: шаги поиска ограничены числом, поэтому результат одинаков на любом телефоне.
 
@@ -21,7 +22,7 @@ export interface CutPlan { cuts: number[]; len: number; scrap: Scrap | null; lef
 export interface CutVariant {
   name: string; desc: string; lb: number; plans: CutPlan[];
   newBars: number; fromWh: number; wasteMm: number; kerfMm: number; totalMm: number; usedMm: number;
-  lossPct: number;     // все остатки (и деловые) + пропилы, % от длины — второй ключ сортировки, как wastePercentage в romchi
+  lossPct: number;     // все остатки (и деловые, без пропилов), % от длины — второй ключ сортировки, как wastePercentage в romchi
   newScraps: number; newScrapsAvg: number; cutsN: number; wastePct: number; effPct: number; sig: string;
 }
 /**
@@ -87,7 +88,7 @@ function cutPackOrder(flat: number[], L: number, k: number, best: boolean): Bin[
     let tgt: { cuts: number[]; load: number } | null = null, tgtLeft = Infinity;
     for(const b of bins){
       const left = L - b.load;
-      if(left >= len + k){
+      if(left >= len + k - 1e-9){
         if(!best){ tgt = b; break; }
         if(left < tgtLeft){ tgt = b; tgtLeft = left; }
       }
@@ -100,7 +101,8 @@ function cutPackOrder(flat: number[], L: number, k: number, best: boolean): Bin[
 // хлыст за хлыстом точным подбором: 'max' — максимум, 'big' — длинная + добор, 'scrap' — остаток почти 0 или деловой
 function cutPackFill(m0: Counts, L: number, k: number, mode: 'max' | 'big' | 'scrap', minScrap: number): Bin[] {
   const m = new Map(m0), bins: Bin[] = [];
-  const okScrap = (left: number) => left <= 50 || left >= minScrap;
+  // остаток так, как его покажет cutBinStats: хвост длиннее пропила теряет ещё один пропил
+  const okScrap = (left: number) => left <= 50 || left - (left > k ? k : 0) >= minScrap;
   while(m.size){
     let cuts: number[];
     if(mode === 'big'){
@@ -121,7 +123,7 @@ function cutPackFill(m0: Counts, L: number, k: number, mode: 'max' | 'big' | 'sc
 // при идеальной укладке остатка хлыстов будет не меньше, чем в лучшем найденном решении.
 // Возвращает решение лучше incumbent (или null) и признак, что перебор закончен (оптимум доказан).
 function cutExact(m0: Counts, L: number, k: number, incumbent: number, lb: number, maxNodes: number): { bins: Bin[] | null; done: boolean } {
-  let best: Bin[] | null = null, bestN = incumbent, timeUp = false, nodes = 0;
+  let best: Bin[] | null = null, bestN = incumbent, timeUp = false, nodes = 0, cut = false;
   const lens = [...m0.keys()].sort((a, b) => b - a);
   const cnt = lens.map(l => m0.get(l) || 0);
   let restW = 0; lens.forEach((l, i) => { restW += cnt[i] * (l + k); });
@@ -130,14 +132,14 @@ function cutExact(m0: Counts, L: number, k: number, incumbent: number, lb: numbe
   const completions = (cap: number): number[][] => {
     const out: number[][] = [], cur: number[] = [];
     const rec = (i: number, left: number) => {
-      if(out.length > 400) return;
+      if(out.length > 400){ cut = true; return; }        // список обрезан — перебор уже не доказательство
       if(i >= lens.length){
         // максимальность: ни одна оставшаяся деталь уже не влезает
-        for(let j = 0; j < lens.length; j++) if(cnt[j] > 0 && lens[j] + k <= left) return;
+        for(let j = 0; j < lens.length; j++) if(cnt[j] > 0 && lens[j] + k <= left + 1e-9) return;
         out.push(cur.slice());
         return;
       }
-      const w = lens[i] + k, maxN = Math.min(cnt[i], Math.floor(left / w));
+      const w = lens[i] + k, maxN = Math.min(cnt[i], Math.floor(left / w + 1e-9));
       for(let n = maxN; n >= 0; n--){
         for(let t = 0; t < n; t++) cur.push(lens[i]);
         cnt[i] -= n;
@@ -157,7 +159,7 @@ function cutExact(m0: Counts, L: number, k: number, incumbent: number, lb: numbe
       if(used < bestN){ bestN = used; best = path.map(c => ({ cuts:c.slice() })); }
       return;
     }
-    if(used + Math.ceil(restW / L) >= bestN) return;
+    if(used + Math.ceil(restW / L - 1e-9) >= bestN) return;
     const big = lens[first];
     cnt[first]--; restW -= big + k;
     const opts = completions(L - big - k)
@@ -176,7 +178,7 @@ function cutExact(m0: Counts, L: number, k: number, incumbent: number, lb: numbe
     cnt[first]++; restW += big + k;
   };
   dfs(0);
-  return { bins:best, done:!timeUp };
+  return { bins:best, done:!timeUp && !cut };
 }
 
 // меньше хлыстов, при равенстве — остатки собраны в крупные куски
@@ -218,7 +220,7 @@ function cutPackImprove(bins0: Bin[], L: number, k: number): Bin[] {
         let t = -1, tl = Infinity;
         for(let j = 0; j < others.length; j++){
           const left = L - loads[j];
-          if(left >= p + k && left < tl){ t = j; tl = left; }
+          if(left >= p + k - 1e-9 && left < tl){ t = j; tl = left; }
         }
         if(t < 0){ ok = false; break; }
         plan.push([t, p]); loads[t] += p + k;
@@ -274,9 +276,9 @@ function cutEvaluate(v: Candidate, L: number, C: CutParams): CutVariant {
   });
   return {
     name:v.name, desc:v.desc, lb:v.lb, plans, newBars, fromWh, wasteMm:waste, kerfMm:kerfs, totalMm:total, usedMm:used,
-    newScraps:scrapsN, newScrapsAvg:scrapsN ? Math.round(scrapsSum / scrapsN) : 0, cutsN,
+    newScraps:scrapsN, newScrapsAvg:scrapsN ? Math.floor(scrapsSum / scrapsN) : 0, cutsN,   // целое деление, как в romchi
     wastePct:total ? (waste + kerfs) / total * 100 : 0,
-    lossPct:total ? (total - used) / total * 100 : 0,
+    lossPct:total ? (waste + scrapsSum) / total * 100 : 0,
     effPct:total ? used / total * 100 : 0,
     sig:plans.map(p => (p.scrap ? 's' + p.scrap.uid : 'n') + ':' + p.cuts.join(',')).sort().join('|')
   };
@@ -297,10 +299,11 @@ export function cutOptimize(pieces: number[], L: number, C: CutParams, scraps: S
   const t0 = performance.now();
   const full = budgetMs > 0;
   const k = C.k, Lc = L + k;                       // вместимость для «деталь + пропил»: пропил только между деталями
-  const tooLong = pieces.filter(x => x > L);
-  const wh = cutMatchScraps(pieces.filter(x => x <= L), scraps, k);
-  const m0 = cutCounts(wh.rest);
-  const n = wh.rest.length;
+  // склад — для всех деталей: деталь длиннее хлыста может лечь в остаток длиннее хлыста (в romchi проверки нет)
+  const wh = cutMatchScraps(pieces, scraps, k);
+  const tooLong = wh.rest.filter(x => x > L);
+  const m0 = cutCounts(wh.rest.filter(x => x <= L));
+  const n = wh.rest.length - tooLong.length;
   const rnd = cutRng(20240917);
   const cand: Candidate[] = [];
   let proven = false, partial = n > BIG_GROUP;
@@ -308,7 +311,8 @@ export function cutOptimize(pieces: number[], L: number, C: CutParams, scraps: S
   const lb = Math.ceil(rest / Lc - 1e-9);           // меньше хлыстов не бывает
   const add = (name: string, desc: string, bins: Bin[]) => cand.push({ name, desc, lb, bins:[...wh.bins, ...bins] });
   if(!m0.size){
-    add(wh.bins.length ? 'Только склад' : 'Нет деталей', 'Все детали помещаются в остатки склада', []);
+    if(wh.bins.length) add('Только склад', 'Все детали помещаются в остатки склада', []);
+    else add('Нет деталей', 'Нет деталей, которые можно нарезать из хлыста этой длины', []);
   }else{
     const packs: [string, string, () => Bin[]][] = [
       ['Первый подходящий (FFD)', 'От длинных к коротким, каждая деталь — в первый хлыст, где хватает места', () => cutPackOrder(cutFlat(m0), Lc, k, false)],
@@ -327,7 +331,7 @@ export function cutOptimize(pieces: number[], L: number, C: CutParams, scraps: S
       if(better(bins)) best = bins;
     });
     if(full && n <= BIG_GROUP){
-      const rb = cutPackRandom(m0, Lc, k, RANDOM_ITERS, rnd);
+      const rb = cutPackRandom(m0, Lc, k, n > 150 ? RANDOM_ITERS / 3 : RANDOM_ITERS, rnd);   // крупные группы — меньше перестановок
       if(rb){
         add('Поиск перестановками', 'Сотни вариантов порядка деталей, выбран лучший', rb);
         if(better(rb)) best = rb;
@@ -340,7 +344,7 @@ export function cutOptimize(pieces: number[], L: number, C: CutParams, scraps: S
     }
     // точный перебор — только если до нижней границы ещё есть куда улучшать
     if(full && n <= BIG_GROUP && best && (best as Bin[]).length > lb){
-      const ex = cutExact(m0, Lc, k, (best as Bin[]).length, lb, EXACT_NODES);
+      const ex = cutExact(m0, Lc, k, (best as Bin[]).length, lb, n > 150 ? EXACT_NODES / 4 : EXACT_NODES);
       if(ex.bins) add('Точный перебор', 'Перебор вариантов с отсечением заведомо худших: найдено меньше хлыстов', ex.bins);
       proven = ex.done;
     }else if(best && (best as Bin[]).length <= lb) proven = true;

@@ -500,7 +500,7 @@ export function renderCuttingScreen(): void {
           ${warn}${chips}
           ${r.res.partial ? '<div class="cut-warn">Больше 300 деталей — упрощённый расчёт</div>' : ''}
           ${v.newBars <= v.lb ? '<div class="cut-badge">✓ Минимально возможное число хлыстов</div>'
-            : (r.res.proven && r.sel === 0 && !v.fromWh ? '<div class="cut-badge">✓ Меньше хлыстов не бывает — проверено перебором</div>' : '')}
+            : (r.res.proven && r.sel === 0 ? '<div class="cut-badge">✓ Меньше хлыстов не бывает — проверено перебором</div>' : '')}
           ${cs.showAlgorithms ? `<div class="cut-algo"><b>${escapeHtml(v.name)}</b> — ${escapeHtml(v.desc)}</div>` : ''}
           <div class="cut-result-head">
             <div class="cf"><span class="cf-label">Новых хлыстов</span><span class="cf-value">${v.newBars ? grp.unitLengthMm + ' × ' + v.newBars + ' шт' : 'не нужны'}</span></div>
