@@ -17,7 +17,7 @@ export function render(filter = ''): void {
   const q = filter.trim().toLowerCase();
   const shown = S.projects.filter(p => p.name.toLowerCase().includes(q));
   if(shown.length === 0){
-    list.innerHTML = `<div class="empty">${S.projects.length === 0 ? 'Проектов пока нет.<br>Нажмите «+», чтобы создать первый.' : 'Ничего не найдено'}</div>`;
+    list.innerHTML = `<div class="empty">${S.projects.length === 0 ? 'Проектов пока нет.<br>Нажмите «+», чтобы создать первый.<br><br>Переустановили приложение? Проекты вернёт «Настройки → Импорт проектов» из папки Документы/GeoRomb.<br>Готовые окна для пробы: «Настройки → Добавить примеры».' : 'Ничего не найдено'}</div>`;
     return;
   }
   list.innerHTML = shown.map(p => `

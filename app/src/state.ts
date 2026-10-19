@@ -3,12 +3,10 @@
 import type { CuttingSettings, DimEditing, PriceSettings, Project, Remnant } from './types.ts';
 
 export const S = {
-  projects: [
-    { id: 1, name: 'Проект 2', date: '18 сентября', elements: [] },
-    { id: 2, name: 'Проект 1', date: '12 сентября', elements: [] },
-    { id: 3, name: 'Пример проекта', date: '3 сентября', elements: [] }
-  ] as Project[],
-  nextId: 4,
+  // новая установка начинается с пустого списка: демо-проекты после переустановки выглядели как
+  // «вернувшиеся» удалённые проекты и смешивались с восстановленными. Примеры — «Настройки → Добавить примеры»
+  projects: [] as Project[],
+  nextId: 1,
   nextElemId: 1,
   nextNodeId: 1,
   currentProjectId: null as number | null,

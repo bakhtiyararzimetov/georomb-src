@@ -28,10 +28,17 @@ test('нормальная загрузка: проекты, nextId/nextElemId �
   assert.equal(S.nextElemId, 91);
 });
 
-test('битый JSON: приложение стартует на проектах по умолчанию', () => {
+test('битый JSON: приложение стартует с пустым списком, как новая установка', () => {
   ls.setItem(PROJECTS_STORAGE_KEY, '{"projects":[{"id":1,');
   assert.doesNotThrow(() => loadProjects());
-  assert.equal(S.projects.length, DEMO.length);
+  assert.equal(S.projects.length, 0);
+});
+
+test('новая установка — без демо-проектов: после переустановки не «возвращаются» удалённые «Проект 1», «Пример проекта»', () => {
+  assert.deepEqual(DEMO, [], 'в state.ts нет проектов по умолчанию');
+  loadProjects();
+  assert.equal(S.projects.length, 0);
+  assert.equal(S.nextId, 4);
 });
 
 test('битый JSON не затирается при следующем сохранении', () => {
