@@ -16,7 +16,7 @@
   "paths": {
     "/api/v1/generate-window-pdf": {
       "post": {
-        "summary": "Проект → PDF (или координаты при format=json)",
+        "summary": "Проект → PDF, координаты или файл для приложения",
         "operationId": "generateWindowPdf",
         "parameters": [
           {
@@ -26,10 +26,12 @@
               "type": "string",
               "enum": [
                 "pdf",
-                "json"
+                "json",
+                "georomb"
               ],
               "default": "pdf"
-            }
+            },
+            "description": "pdf — чертежи; json — координаты в мм; georomb — файл для «Импорт проектов» в приложении GeoRomb (смета, раскрой, склад)"
           },
           {
             "name": "lang",
@@ -131,7 +133,7 @@
         },
         "responses": {
           "200": {
-            "description": "PDF (format=pdf) или JSON с координатами в мм (format=json)",
+            "description": "PDF (format=pdf), координаты в мм (format=json) или файл импорта для приложения (format=georomb, скачивается как <имя проекта>.json)",
             "headers": {
               "X-Request-Id": {
                 "schema": {
@@ -311,7 +313,7 @@
     },
     "/api/generate-window-pdf": {
       "post": {
-        "summary": "Старый адрес, то же самое",
+        "summary": "Проект → PDF, координаты или файл для приложения",
         "operationId": "generateWindowPdfLegacy",
         "parameters": [
           {
@@ -321,10 +323,12 @@
               "type": "string",
               "enum": [
                 "pdf",
-                "json"
+                "json",
+                "georomb"
               ],
               "default": "pdf"
-            }
+            },
+            "description": "pdf — чертежи; json — координаты в мм; georomb — файл для «Импорт проектов» в приложении GeoRomb (смета, раскрой, склад)"
           },
           {
             "name": "lang",
@@ -426,7 +430,7 @@
         },
         "responses": {
           "200": {
-            "description": "PDF (format=pdf) или JSON с координатами в мм (format=json)",
+            "description": "PDF (format=pdf), координаты в мм (format=json) или файл импорта для приложения (format=georomb, скачивается как <имя проекта>.json)",
             "headers": {
               "X-Request-Id": {
                 "schema": {

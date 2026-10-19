@@ -182,3 +182,18 @@ test('openapi.json: адрес сервера из publicUrl, примеры и 
     assert.deepEqual(spec.servers, [{ url: '/', description: 'этот сервер' }]);
   });
 });
+
+test('?format=georomb — файл для «Импорт проектов» в приложении (резервная копия с одним проектом)', async () => {
+  await withApp({}, async base => {
+    const res = await post(base, V1 + '?format=georomb');
+    assert.equal(res.status, 200);
+    assert.match(res.headers.get('content-type') || '', /^application\/json/);
+    const cd = res.headers.get('content-disposition') || '';
+    assert.match(cd, /^attachment; filename="georomb\.json"; filename\*=UTF-8''/);
+    assert.ok(cd.endsWith(encodeURIComponent('Иванов, ул. Навои 12') + '.json'), cd);
+    const f = await res.json() as { format: string; version: number; projects: { name: string; elements: unknown[] }[] };
+    assert.deepEqual([f.format, f.version, f.projects.length], ['window-projects-backup', 1, 1]);
+    assert.equal(f.projects[0].name, 'Иванов, ул. Навои 12');
+    assert.equal(f.projects[0].elements.length, 2);
+  });
+});

@@ -7,6 +7,7 @@ import { ProjectError, parseProject } from './project.ts';
 import { renderPdfInWorker } from './worker.ts';
 import { projectLayoutJson } from './layoutJson.ts';
 import { docsFile, openapiJson } from './docs.ts';
+import { projectImportFile } from './importFile.ts';
 
 export const API_PATH = '/api/v1/generate-window-pdf';
 export const LEGACY_PATH = '/api/generate-window-pdf';   // первый адрес: оставлен, чтобы бот не сломался
@@ -60,8 +61,8 @@ function readBody(req: IncomingMessage): Promise<string> {
 
 // имя файла: как safeFileName в приложении, плюс управляющие символы (иначе можно сломать заголовок)
 const safeFileName = (s: string) => s.replace(/[\\/:*?"<>|\x00-\x1f\x7f]/g, '_').trim() || 'Проект';
-const contentDisposition = (name: string) =>
-  `attachment; filename="georomb.pdf"; filename*=UTF-8''${encodeURIComponent(safeFileName(name) + '.pdf')}`;
+const contentDisposition = (name: string, ext = 'pdf') =>
+  `attachment; filename="georomb.${ext}"; filename*=UTF-8''${encodeURIComponent(safeFileName(name) + '.' + ext)}`;
 
 /** Ограничение одновременных отрисовок: страница рисуется ~0.2–0.5 с CPU, без лимита параллельные запросы складываются. */
 function limiter(maxConcurrent: number, maxQueue: number) {
@@ -133,7 +134,7 @@ function clientIp(req: IncomingMessage, trustProxy: boolean): string {
 
 async function handleGenerate(req: IncomingMessage, res: ServerResponse, url: URL, makePdf: NonNullable<AppDeps['makePdf']>, limit: Limit): Promise<void> {
   const format = url.searchParams.get('format') || 'pdf';
-  if(format !== 'pdf' && format !== 'json') throw new HttpError(400, 'invalid_format', 'Параметр format: pdf (по умолчанию) или json');
+  if(format !== 'pdf' && format !== 'json' && format !== 'georomb') throw new HttpError(400, 'invalid_format', 'Параметр format: pdf (по умолчанию), json или georomb');
   const lang = (url.searchParams.get('lang') || 'ru') as PdfLang;
   if(LANGS.indexOf(lang) < 0) throw new HttpError(400, 'invalid_lang', 'Параметр lang: ru (по умолчанию), uz или ky');
   const raw = await readBody(req);
@@ -147,6 +148,7 @@ async function handleGenerate(req: IncomingMessage, res: ServerResponse, url: UR
     throw err;
   }
   if(format === 'json'){ sendJson(res, 200, projectLayoutJson(project)); return; }
+  if(format === 'georomb'){ sendJson(res, 200, projectImportFile(project), { 'Content-Disposition': contentDisposition(project.name, 'json') }); return; }
 
   const disposition = contentDisposition(project.name);   // до отрисовки: ошибка здесь не должна стоить CPU
   const pdf = await limit(async () => {

@@ -142,3 +142,20 @@ test('импорт цен: стекло по видам, штапик, упло�
   assert.deepEqual(S.prices.colorPct, { colored: 15, laminated: 100 });
   assert.deepEqual(S.prices.works, { install: 2000, dismantle: 0, slopes: 0, delivery: 7000 });
 });
+
+test('файл от API (?format=georomb) импортируется: окна, створки и деления — как прислал бот', async () => {
+  const { parseProject } = await import('../../server/src/project.ts');
+  const { projectImportFile } = await import('../../server/src/importFile.ts');
+  const { readFileSync } = await import('node:fs');
+  const body = JSON.parse(readFileSync(new URL('../../server/examples/project.json', import.meta.url), 'utf8'));
+  await importProjectsFromFile(fileInput(JSON.stringify(projectImportFile(parseProject(body)))));
+  assert.equal(S.projects.length, 1);
+  const p = S.projects[0];
+  assert.equal(p.name, 'Иванов, ул. Навои 12');
+  assert.equal(p.phone, '+998 90 123 45 67');
+  assert.deepEqual(p.elements.map(e => [e.type, Number(e.width), Number(e.height), Number(e.qty), !!e.net]),
+    [['casement', 1500, 1200, 2, true], ['casement', 800, 2000, 1, false]]);
+  assert.deepEqual(p.elements[0].root!.children!.map(c => c.opening), [{ type: 'TiltTurn', hinge: 'left' }, null]);
+  assert.deepEqual(p.elements[1].root!.inner!.children!.map(c => c.fill), ['glass', 'panelH']);
+  assert.ok(p.elements.every(e => isElementValid(e)), 'элементы рисуются и считаются');
+});

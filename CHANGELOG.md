@@ -19,6 +19,7 @@
 - Ключ доступа (`API_KEYS`, заголовок `X-API-Key` или `Authorization: Bearer`) и лимит запросов в минуту (`RATE_LIMIT`, по умолчанию 60): ответы `401 unauthorized` и `429 rate_limited` с `Retry-After`.
 - `X-Request-Id` в каждом ответе и в логе, `requestId` в теле ошибки; строка лога на каждый запрос.
 - `?lang=uz|ky` — подписи PDF на узбекском и кыргызском.
+- `?format=georomb` — файл `<имя проекта>.json` для «Импорт проектов» в приложении: заказ из бота открывается в приложении со сметой и раскроем.
 - `GET /docs` — документация в Swagger UI (Authorize, Try it out, пример проекта); `GET /openapi.json` — описание API (OpenAPI 3.1), адрес сервера — из `PUBLIC_URL`.
 - `npm run api-key` — новый ключ вида `gr_…`.
 - Выкладка на Render бесплатно: `render.yaml` (Blueprint), самопинг `KEEP_ALIVE=1`, чтобы сервер не засыпал, настройки `PDF_CONCURRENCY` и `PDF_TIMEOUT` для слабого сервера.
