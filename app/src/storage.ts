@@ -2,8 +2,11 @@
 import { S } from './state.ts';
 import type { Project } from './types.ts';
 import { maxNodeId } from './model/tree.ts';
+import { showToast } from './ui/dom.ts';
 
 export const PROJECTS_STORAGE_KEY = 'iwd.projects.v1';
+/** Сюда откладываются повреждённые данные перед тем, как приложение начнёт с чистого листа. */
+export const PROJECTS_CORRUPT_KEY = 'iwd.projects.corrupt.v1';
 
 // история отмены (history / redo) не сохраняется — она нужна только в течение сессии
 export const withoutHistory = (k: string, v: unknown): unknown => (k === 'history' || k === 'redo') ? undefined : v;
@@ -15,31 +18,56 @@ export function notifyDataChanged(): void {
   try{ if(changeListener) changeListener(); }catch{ /* копия не должна мешать сохранению */ }
 }
 
-export function saveProjects(): void {
+let lastSaveWarn = 0;
+/** false — не сохранилось (память переполнена или недоступна); пользователь об этом узнаёт. */
+export function saveProjects(): boolean {
+  let ok = true;
   try{
     localStorage.setItem(PROJECTS_STORAGE_KEY,
       JSON.stringify({ projects: S.projects, nextId: S.nextId, nextElemId: S.nextElemId }, withoutHistory));
-  }catch{ /* localStorage недоступен или переполнен — работаем без сохранения */ }
+  }catch{
+    ok = false;
+    // не на каждое нажатие: одно предупреждение в 10 с
+    if(Date.now() - lastSaveWarn > 10_000){
+      lastSaveWarn = Date.now();
+      try{ showToast('Не удалось сохранить: память телефона заполнена. Удалите старые проекты или сделайте экспорт.', 5000); }catch{ /* нет DOM */ }
+    }
+  }
   notifyDataChanged();
+  return ok;
+}
+function keepCorrupt(raw: string): void {
+  try{ if(localStorage.getItem(PROJECTS_CORRUPT_KEY) !== raw) localStorage.setItem(PROJECTS_CORRUPT_KEY, raw); }catch{ /* без копии */ }
 }
 
 export function loadProjects(): void {
+  let raw: string | null = null;
   try{
-    const raw = localStorage.getItem(PROJECTS_STORAGE_KEY);
+    raw = localStorage.getItem(PROJECTS_STORAGE_KEY);
     if(raw){
       const d = JSON.parse(raw) as { projects?: unknown; nextId?: unknown; nextElemId?: unknown };
-      if(d && Array.isArray(d.projects) && d.projects.every((p: unknown) => !!p && typeof p === 'object' && Number.isFinite((p as Project).id))){
-        S.projects = d.projects as Project[];
+      if(d && Array.isArray(d.projects)){
+        // одна битая запись не должна стоить остальных проектов: берём все объекты, без id — даём новый
+        const list = d.projects.filter((p: unknown): p is Project => !!p && typeof p === 'object' && !Array.isArray(p));
+        if(list.length !== d.projects.length) keepCorrupt(raw);
+        let next = list.reduce((m, p) => Number.isFinite(p.id) ? Math.max(m, p.id + 1) : m, 1);
+        list.forEach(p => { if(!Number.isFinite(p.id)) p.id = next++; });
+        S.projects = list;
         if(Number.isFinite(d.nextId))     S.nextId = d.nextId as number;
         if(Number.isFinite(d.nextElemId)) S.nextElemId = d.nextElemId as number;
-      }
+      }else keepCorrupt(raw);
     }
-  }catch{ /* повреждённые данные — остаёмся на проектах по умолчанию */ }
+  }catch{
+    // повреждённые данные — начинаем с проектов по умолчанию, но сырую копию сохраняем для восстановления
+    if(raw) keepCorrupt(raw);
+  }
   try{
     S.projects.forEach(p => {
       if(!Array.isArray(p.elements)) p.elements = [];
       p.elements = p.elements.filter(e => e && typeof e === 'object');
       if(p.number == null) p.number = p.id;                                   // проекты без номера: номер = id
+      if(typeof p.name !== 'string' || !p.name.trim()) p.name = 'Проект ' + p.number;
+      if(typeof p.date !== 'string') p.date = '';
       (['phone', 'address', 'description'] as const).forEach(k => { if(typeof p[k] !== 'string') p[k] = ''; });
       p.elements.forEach(e => {
         e.history = []; e.redo = [];

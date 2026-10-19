@@ -6,6 +6,7 @@ import { fillColorSelect, fillGlassSelect, openConfirm, openSummaryRows } from '
 import { findColor } from '../data/colors.ts';
 import { GLASS_NEW_DEFAULT, elementGlassName, findGlass } from '../data/glass.ts';
 import { renumberTree } from '../model/tree.ts';
+import { INVALID_ELEMENT_MSG, beginChange, finishChange, isElementValid } from '../model/history.ts';
 import { calcElement, fmtMoney, fmtNum, fmtSummaryMoney } from '../model/pricing.ts';
 import { getCurrentProject, saveProjects } from '../storage.ts';
 import { renderCanvas } from './projects.ts';
@@ -87,8 +88,8 @@ export function addElementItem(): void {
   if(S.editingElementId !== null){
     const e = project.elements.find(el => el.id === S.editingElementId);
     if(e){
-      if(e.type !== type){ e.type = type; e.root = null; e.history = []; e.redo = []; S.selectedNid = null; }   // смена типа — дерево заново
-      e.width = width; e.height = height; e.qty = qty; e.color = colorCode; e.glass = glassCode;
+      if(!applyFormSize(e, type, width, height)) return;
+      e.qty = qty; e.color = colorCode; e.glass = glassCode;
       e.sill = sill.needSill; e.sillLen = sill.sillLen; e.sillWidth = sill.sillWidth;
       setNet(e, net);
     }
@@ -163,6 +164,21 @@ export function closeEditElement(): void {
   $('editElementBackdrop').classList.remove('open');
   S.editingElementId = null;
 }
+// Размер из формы — тот же шаг истории, что и правка на схеме: недопустимый откатывается с тостом
+// (форма остаётся открытой), допустимый попадает в «Отменить» / «Вернуть». false — не принято.
+function applyFormSize(e: WinElement, type: ElementType, width: number, height: number): boolean {
+  if(e.type !== type){                                // смена типа — дерево и история заново
+    const prev = { type: e.type, root: e.root, width: e.width, height: e.height, history: e.history, redo: e.redo };
+    e.type = type; e.root = null; e.history = []; e.redo = []; e.width = width; e.height = height;
+    if(!isElementValid(e)){ Object.assign(e, prev); showToast(INVALID_ELEMENT_MSG); return false; }
+    S.selectedNid = null;
+    return true;
+  }
+  const tok = beginChange(e);
+  e.width = width; e.height = height;
+  return finishChange(e, tok);
+}
+
 export function saveEditElement(): void {
   const project = getCurrentProject();
   if(!project || S.editingElementId === null) return;
@@ -176,8 +192,8 @@ export function saveEditElement(): void {
   const sill = readSill('editElem', 'editElemSill', width);
   if(!sill) return;
   const colorSel = $select('editElemColor');
-  if(e.type !== type){ e.type = type; e.root = null; e.history = []; e.redo = []; S.selectedNid = null; }
-  e.width = width; e.height = height; e.qty = qty;
+  if(!applyFormSize(e, type, width, height)) return;
+  e.qty = qty;
   e.sill = sill.needSill; e.sillLen = sill.sillLen; e.sillWidth = sill.sillWidth;
   setNet(e, checked('editElemNet') === 'yes');
   if(colorSel && !colorSel.disabled) e.color = colorSel.value;

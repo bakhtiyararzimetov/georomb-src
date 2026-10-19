@@ -13,6 +13,7 @@ import { PDF_DIM, PDF_FONT, PDF_GREY, PDF_INK, PDF_LINE, PDF_M, PDF_PH, PDF_PW, 
 import { saveWarehouse, wh } from './warehouse.ts';
 import { showTab } from './navigation.ts';
 import { openPdfOptions, pdfRole, pdfT } from './pdfI18n.ts';
+import { parseMm } from '../model/layout.ts';
 
 export const CUT_ROLE_LABEL: Record<string, string> = {
   frame:'Рама', mullion:'Импост', wSash:'Створка окна', dSash:'Створка двери',
@@ -113,10 +114,12 @@ export function extractCuttingGroups(project: Project): CutGroup[] {
   const mat = projectMat(project);
   const groups: Record<string, CutGroup & { lenCounts: Record<number, number> }> = {};
   project.elements.forEach(e => {
-    const qty = Math.max(0, Math.round(parseFloat(String(e.qty)) || DEFAULT_QTY));
+    const qty = Math.max(0, Math.round(parseMm(e.qty) || DEFAULT_QTY));
     if(!qty) return;
-    const colorCode = e.color || '';
-    const color = findColor(project, colorCode);
+    // неизвестный код (например, цвет алюминия в проекте ПВХ из чужой копии) — как «Без цвета»: иначе две группы
+    // «Без цвета» делят между собой один и тот же остаток склада
+    const color = findColor(project, e.color || '');
+    const colorCode = color ? color.code : '';
     const colorName = color ? color.name : 'Без цвета';
     const colorHex = elementColorHex(e, project);
     const push = (role: string, sub: string, subLabel: string, lens: number[]) => {
@@ -137,7 +140,7 @@ export function extractCuttingGroups(project: Project): CutGroup[] {
     };
     if(e.type === 'sill'){
       // отдельный подоконник: ширина элемента — длина, высота — глубина полки
-      const len = parseFloat(String(e.width)) || 0, depth = Math.round(parseFloat(String(e.height)) || 0);
+      const len = parseMm(e.width) || 0, depth = Math.round(parseMm(e.height) || 0);
       if(len > 0) push('sill', 'd' + depth, depth + ' мм', [len]);
       return;
     }

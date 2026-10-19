@@ -83,8 +83,7 @@ test('CLI: add-list --days 30 — срок через 30 дней', () => {
   assert.ok(Number(exp) > dateNum());
 });
 
-test('CLI: опечатка в --days не выдаёт бессрочную лицензию',
-  { todo: 'БАГ: expFromDays (backend/src/cli.ts:43): Number("3O")||0 → 0 → срок "0" (навсегда); то же для "-30", "30д" и issue --days' }, () => {
+test('CLI: опечатка в --days не выдаёт бессрочную лицензию', () => {
   for(const d of ['3O', '-30', '30д']){
     const exp = cliAddList(d);
     assert.notEqual(exp, '0', '--days ' + d + ' дало бессрочную лицензию');

@@ -39,28 +39,38 @@ function cutRng(seed: number): () => number {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
-// точный подбор: набор с максимальной Σ(деталь + пропил) ≤ cap (рюкзак 0/1, количества — двоичным разбиением)
+// точный подбор: набор с максимальной Σ(деталь + пропил) ≤ cap (рюкзак 0/1, количества — двоичным разбиением).
+// Рюкзак идёт по целым индексам, поэтому дробный пропил (2,5 мм) и cap считаем в десятых/сотых долях мм.
+function dpScale(k: number, cap: number): number {
+  for(const s of [1, 10, 100]){
+    const ok = (x: number) => Math.abs(x * s - Math.round(x * s)) < 1e-6;
+    if(ok(k) && ok(cap)) return s;
+  }
+  return 100;
+}
 function cutBestFill(m: Counts, cap: number, k: number, okLeft: ((left: number) => boolean) | null): number[] | null {
   if(cap <= 0) return null;
   const items: [number, number][] = [];
   [...m.keys()].sort((a, b) => b - a).forEach(len => {
-    let c = Math.min(m.get(len) || 0, Math.floor(cap / (len + k))), p = 1;
+    let c = Math.min(m.get(len) || 0, Math.floor(cap / (len + k) + 1e-9)), p = 1;
     while(c > 0){ const t = Math.min(p, c); items.push([len, t]); c -= t; p *= 2; }
   });
   if(!items.length) return null;
-  const reach = new Uint8Array(cap + 1), from = new Int32Array(cap + 1);
+  const sc = dpScale(k, cap), capI = Math.floor(cap * sc + 1e-6);
+  const wOf = (i: number) => Math.round((items[i][0] + k) * sc) * items[i][1];
+  const reach = new Uint8Array(capI + 1), from = new Int32Array(capI + 1);
   reach[0] = 1;
   for(let i = 0; i < items.length; i++){
-    const w = (items[i][0] + k) * items[i][1];
-    for(let c = cap; c >= w; c--) if(!reach[c] && reach[c - w]){ reach[c] = 1; from[c] = i; }
+    const w = wOf(i);
+    for(let c = capI; c >= w; c--) if(!reach[c] && reach[c - w]){ reach[c] = 1; from[c] = i; }
   }
-  for(let c = cap; c > 0; c--){
-    if(!reach[c] || (okLeft && !okLeft(cap - c))) continue;
+  for(let c = capI; c > 0; c--){
+    if(!reach[c] || (okLeft && !okLeft(cap - c / sc))) continue;
     const out: number[] = [];
     for(let x = c; x > 0; ){
-      const [len, t] = items[from[x]];
+      const i = from[x], [len, t] = items[i];
       for(let j = 0; j < t; j++) out.push(len);
-      x -= (len + k) * t;
+      x -= wOf(i);
     }
     return out;
   }

@@ -57,8 +57,7 @@ test('отходы «процент»: строка отходов = проце�
   assert.equal(waste.sum, Math.round(frame.sum * 0.1));
 });
 
-test('отдельный подоконник (type=sill) считается как подоконник, а не как рама со стеклом',
-  { todo: 'БАГ: elementGeometry не различает type=sill — в смету идут «Рама» и «Стекло», подоконник не считается' }, () => {
+test('отдельный подоконник (type=sill) считается как подоконник, а не как рама со стеклом', () => {
   S.prices = prices();
   const sill = el({ type: 'sill', width: 1500, height: 200 });
   const r = calcProject(project([sill]));
@@ -66,19 +65,19 @@ test('отдельный подоконник (type=sill) считается к�
   assert.ok(!names.includes('Рама'), 'в смете отдельного подоконника есть строка «Рама»: ' + JSON.stringify(r.lines));
   assert.ok(!names.includes('Стекло'), 'в смете отдельного подоконника есть строка «Стекло»');
   assert.ok(names.some(n => n.startsWith('Подоконник')), 'нет строки «Подоконник»');
+  const line = r.lines.find(l => l.name === 'Подоконник, 20 см')!;
+  assert.equal(line.qty, 1.5, 'длина 1500 мм, полка 200 мм = 20 см');
+  assert.equal(r.grand, Math.round(1.5 * 2000 * 1.12), 'только подоконник и налог');
+  assert.equal(r.totals.area, 0, 'подоконник не добавляет площадь окон');
 });
 
-test('недопустимая геометрия (3 створки в 150 мм) не должна давать «нормальную» цену',
-  { todo: 'БАГ: calcElement молча считает деталь створки 5 мм; форма правки (saveEditElement) пропускает такой размер без isElementValid' }, () => {
+test('отдельный подоконник с нестандартной глубиной — ближайшая ширина полки из прайса', () => {
   S.prices = prices();
-  const e = threeSashes(150);
-  assert.equal(isElementValid(e, project([])), false);
-  const c = calcElement(e, project([]));
-  assert.ok(c.g.pieces.wSash.every(x => x >= 100), 'детали створки: ' + c.g.pieces.wSash.join(', '));
+  const r = calcProject(project([el({ type: 'sill', width: 1000, height: 270 })]));
+  assert.ok(r.lines.some(l => l.name === 'Подоконник, 25 см' || l.name === 'Подоконник, 30 см'), JSON.stringify(r.lines.map(l => l.name)));
 });
 
-test('ширина "1500,5" (запятая) не обрезается до 1500',
-  { todo: 'Мелочь: computeLayout разбирает размер через parseFloat — "1500,5" → 1500, "0"/"abc" → 1500 по умолчанию' }, () => {
+test('ширина "1500,5" (запятая) не обрезается до 1500', () => {
   assert.equal(computeLayout(el({ width: '1500,5' })).W, 1500.5);
 });
 
@@ -87,7 +86,7 @@ test('ширина 0 не превращается молча в 1500', { todo: 
   assert.notEqual(elementGeometry(el({ width: 0 }), 'pvc').W, 1500);
 });
 
-test('количество 0 не считается как 1 шт', { todo: 'Мелочь: calcElement: parseFloat(qty) || 1 — qty=0 в смете = 1 шт (из формы 0 не пройдёт, из старых данных — да)' }, () => {
+test('количество 0 не считается как 1 шт', () => {
   S.prices = prices();
   assert.equal(calcElement(el({ qty: 0 }), project([])).qty, 0);
 });

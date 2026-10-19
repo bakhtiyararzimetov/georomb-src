@@ -14,13 +14,11 @@ export function setOpen(id: string, open: boolean): void {
   $(id).classList.toggle('open', open);
 }
 
+/** Для текста и для атрибутов: & < > " ' (кавычки в названиях клиентов разрешены — «ООО "Окна"»). */
 export function escapeHtml(s: unknown): string {
-  const d = document.createElement('div');
-  d.textContent = String(s);
-  return d.innerHTML;
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
-// escapeHtml не экранирует кавычки, а здесь значения попадают в value="..."
-export function escapeAttr(s: unknown): string { return escapeHtml(String(s)).replace(/"/g, '&quot;'); }
+export const escapeAttr = escapeHtml;
 
 let toastTimer: ReturnType<typeof setTimeout> | undefined;
 /** ms — сколько держать тост (по умолчанию 2 с). */

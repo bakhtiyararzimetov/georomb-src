@@ -56,8 +56,7 @@ test('битые элементы пропускаются, остальное �
   assert.match(dom.toast(), /пропущено элементов: 5/);
 });
 
-test('окно с 9 вертикальными полями, созданное в приложении, переживает экспорт → импорт',
-  { todo: 'БАГ: cleanNode (backup.ts:94) отбрасывает ветку с >8 детьми, а flattenSameDir/инструмент MV1 собирают цепочку из любого числа импостов — элемент теряется при восстановлении' }, async () => {
+test('окно с 9 вертикальными полями, созданное в приложении, переживает экспорт → импорт', async () => {
   const kids: TreeNode[] = Array.from({ length: 9 }, (_, i) => ({ nid: i + 2, kind: 'leaf', fill: 'glass', opening: null }));
   const wide = el({ width: 5400, height: 2400, root: { nid: 1, kind: 'branch', dir: 'v', sizes: null, children: kids } });
   assert.equal(isElementValid(wide, proj([])), true, 'контроль: в приложении элемент допустим');
@@ -65,21 +64,18 @@ test('окно с 9 вертикальными полями, созданное 
   assert.equal(S.projects[0].elements.length, 1, dom.toast());
 });
 
-test('больше 500 проектов: ни один не теряется молча',
-  { todo: 'Важно: IMPORT_MAX_PROJECTS=500 (backup.ts:183) — проекты сверх 500 отбрасываются без предупреждения, тост «Импортировано проектов: 500.»' }, async () => {
+test('больше 500 проектов: ни один не теряется молча', async () => {
   const many = Array.from({ length: 520 }, (_, i) => proj([], { id: i + 1, number: i + 1, name: 'П' + i }));
   await importProjectsFromFile(fileInput(backup(many)));
   assert.ok(S.projects.length === 520 || /520|пропущ/.test(dom.toast()), 'импортировано ' + S.projects.length + ', тост: ' + dom.toast());
 });
 
-test('кавычки и & в имени клиента сохраняются',
-  { todo: 'Мелочь: safeText вырезает <>&"\'` вместо экранирования при выводе — «ООО "Окна & Двери"» → «ООО Окна  Двери»' }, async () => {
+test('кавычки и & в имени клиента сохраняются', async () => {
   await importProjectsFromFile(fileInput(backup([proj([], { name: 'ООО "Окна & Двери"', address: "ул. Абая 1'А" })])));
   assert.equal(S.projects[0].name, 'ООО "Окна & Двери"');
 });
 
-test('импорт при переполненном хранилище не сообщает об успехе',
-  { todo: 'Важно: saveProjects молча падает на квоте, а importProjectsFromFile показывает «Импортировано проектов: N» — после перезапуска их нет' }, async () => {
+test('импорт при переполненном хранилище не сообщает об успехе', async () => {
   ls.quotaBytes = 50;
   await importProjectsFromFile(fileInput(backup([proj([el()])])));
   assert.ok(ls.getItem(PROJECTS_STORAGE_KEY) !== null || !/Импортировано/.test(dom.toast()), 'тост: ' + dom.toast());

@@ -53,24 +53,28 @@ test('недопустимое изменение откатывается и н
   assert.equal(isElementValid(e, p), true);
 });
 
-test('форма правки не даёт сохранить размер, при котором элемент недопустим',
-  { todo: 'БАГ: saveEditElement (elementForm.ts:172-180) не вызывает isElementValid — три створки в 150 мм сохраняются' }, () => {
+test('форма правки не даёт сохранить размер, при котором элемент недопустим', () => {
   splitAsTool();
   S.editingElementId = e.id;
   dom.el('editElemWidth').value = '150';
   saveEditElement();
   assert.equal(isElementValid(e, p), true, 'сохранено недопустимое окно шириной ' + e.width);
+  assert.equal(Number(e.width), 1500, 'ширина откатилась');
+  assert.equal(dom.toast(), 'Текущий элемент недопустимый');
 });
 
-test('отмена после правки ширины в форме не возвращает старую ширину',
-  { todo: 'БАГ: форма меняет width мимо истории; «Отменить» восстанавливает снимок с прежней шириной — правка формы теряется' }, () => {
+test('правка ширины в форме — обычный шаг истории: «Отменить» возвращает ширину, деление остаётся', () => {
   splitAsTool();                                   // история: снимок 1500 мм без деления
   S.editingElementId = e.id;
   dom.el('editElemWidth').value = '2000';
   saveEditElement();
   assert.equal(Number(e.width), 2000);
-  undoElement();                                   // пользователь отменяет деление, а не ширину
-  assert.equal(Number(e.width), 2000, 'после отмены деления ширина снова ' + e.width);
+  undoElement();                                   // последнее действие — ширина
+  assert.equal(Number(e.width), 1500);
+  assert.equal(e.root!.kind, 'branch', 'деление на месте');
+  redoElement();
+  assert.equal(Number(e.width), 2000, '«Вернуть» возвращает правку формы');
+  assert.equal(e.root!.kind, 'branch');
 });
 
 test('правка ширины в форме сохраняет заданные размеры ячеек',

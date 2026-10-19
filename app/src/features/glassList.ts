@@ -11,6 +11,7 @@ import { getCurrentProject } from '../storage.ts';
 import { PDF_GREY, PDF_INK, PDF_LINE, PDF_M, PDF_PH, PDF_PW, type JpegPage, type PdfPage,
          pdfCanvasJpeg, pdfFromJpegs, pdfNewPage, pdfState, pdfText, safeFileName } from './pdf.ts';
 import { openPdfOptions, pdfT } from './pdfI18n.ts';
+import { parseMm } from '../model/layout.ts';
 
 // ===== настройки раскроя листов =====
 const GC_KEY = 'iwd.glassCut.v1';
@@ -49,7 +50,7 @@ export function collectPanes(project: Project): PaneList {
   const glass: GlassGroup[] = [], nets: SizeRow[] = [];
   project.elements.forEach(e => {
     if(e.type === 'sill') return;
-    const qty = Math.max(0, Math.round(parseFloat(String(e.qty)) || DEFAULT_QTY));
+    const qty = Math.max(0, Math.round(parseMm(e.qty) || DEFAULT_QTY));
     if(!qty) return;
     const g = elementGeometry(e, mat);
     const gt = findGlass(e.glass);

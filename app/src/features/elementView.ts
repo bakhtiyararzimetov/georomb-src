@@ -4,7 +4,7 @@ import type { Axis, Rect, TreeNode, WinElement } from '../types.ts';
 import { $, $input, isOpen, parseSize, showToast } from '../ui/dom.ts';
 import { elementColorHex } from '../data/colors.ts';
 import { OPENINGS, SLIDING_TEMPLATES, profileFor, sashBand } from '../data/profiles.ts';
-import { computeLayout, insetRect, layoutForDrawing } from '../model/layout.ts';
+import { computeLayout, insetRect, layoutForDrawing, parseMm } from '../model/layout.ts';
 import {
   applySlidingTemplate, ensureRoot, findNode, findParent, findSashOwner, firstLeaf, isElementEmpty, newLeaf, splitNode
 } from '../model/tree.ts';
@@ -147,8 +147,8 @@ function syncWidthRuler(): void {
 function renderSillView(e: WinElement): void {
   const project = getCurrentProject();
   $('elementViewTitle').textContent = String(S.currentElementIndex + 1);
-  const W = parseFloat(String(e.width))  || DEFAULT_W;
-  const H = parseFloat(String(e.height)) || DEFAULT_H;
+  const W = parseMm(e.width)  || DEFAULT_W;
+  const H = parseMm(e.height) || DEFAULT_H;
   const shape = $('elemShape');
   shape.style.aspectRatio = W + '/' + H;
   shape.innerHTML = buildSillSvg(W, H, elementColorHex(e, project));
@@ -176,7 +176,7 @@ export function renderElementView(): void {
   $('elementViewTitle').textContent = String(S.currentElementIndex + 1);
 
   const shape = $('elemShape');
-  shape.style.aspectRatio = (parseFloat(String(e.width)) || DEFAULT_W) + '/' + (parseFloat(String(e.height)) || DEFAULT_H);
+  shape.style.aspectRatio = (parseMm(e.width) || DEFAULT_W) + '/' + (parseMm(e.height) || DEFAULT_H);
   const out = layoutForDrawing(e, project);
   out.color = elementColorHex(e, project); out.glass = e.glass;
   const { W, H } = out;

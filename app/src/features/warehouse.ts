@@ -167,7 +167,7 @@ export function renderWarehouseScreen(): void {
               </div>
               <div>
                 <div class="wh-len">${r.lengthMm} мм</div>
-                <div class="wh-qty">${r.qty} шт</div>
+                <div class="wh-qty">${escapeHtml(r.qty)} шт</div>
               </div>
               <button class="wh-del" aria-label="Удалить" onclick="event.stopPropagation(); deleteWhRemnant(${r.id})">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
@@ -268,7 +268,7 @@ function renderWhResultsHtml(): string {
       <div class="wh-result-card${i === 0 ? ' wh-best' : ''}">
         <div class="wh-result-title">Остаток №${remnant.id}</div>
         <div class="wh-result-grid">
-          <div class="wf"><span class="wf-label">Длина остатка</span><span class="wf-value">${remnant.lengthMm} мм × ${remnant.qty} шт</span></div>
+          <div class="wf"><span class="wf-label">Длина остатка</span><span class="wf-value">${escapeHtml(remnant.lengthMm)} мм × ${escapeHtml(remnant.qty)} шт</span></div>
           <div class="wf"><span class="wf-label">Деталей с одного</span><span class="wf-value">${use.piecesPerUnit} шт</span></div>
           <div class="wf"><span class="wf-label">Всего деталей</span><span class="wf-value">${use.totalPieces} шт</span></div>
           <div class="wf"><span class="wf-label">Остаётся</span><span class="wf-value">${use.leftoverMm} мм</span></div>

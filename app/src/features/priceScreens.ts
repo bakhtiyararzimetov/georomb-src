@@ -57,7 +57,7 @@ export function renderPriceEstimate(): void {
         <div class="price-row" onclick="togglePriceDetail(${i})">
           <div class="pc-no">${i+1}</div>
           <div class="pc-main">
-            <div class="pc-name">${e.width} × ${e.height} мм · ${e.type === 'sill' ? 'подоконник' : (e.type === 'sliding' ? 'раздвижение' : 'створный')}${e.sill ? ' · с подоконником' : ''}</div>
+            <div class="pc-name">${escapeHtml(e.width)} × ${escapeHtml(e.height)} мм · ${e.type === 'sill' ? 'подоконник' : (e.type === 'sliding' ? 'раздвижение' : 'створный')}${e.sill ? ' · с подоконником' : ''}</div>
             <div class="pc-sub">${fmtNum(c.g.area)} м² · × ${c.qty}</div>
           </div>
           <div class="pc-sum">${fmtMoney(c.roundedTotal || 0)}</div>

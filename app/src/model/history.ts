@@ -1,6 +1,6 @@
 // История изменений элемента (снимки JSON) и проверка допустимости, как в старом проекте.
 import type { Project, TreeNode, WinElement } from '../types.ts';
-import { insetRect, computeLayout, quadOk } from './layout.ts';
+import { insetRect, computeLayout, quadOk, parseMm } from './layout.ts';
 import { profileFor, sashInset, sashProfile } from '../data/profiles.ts';
 import { getCurrentProject, saveProjects } from '../storage.ts';
 import { showToast } from '../ui/dom.ts';
@@ -40,7 +40,7 @@ export function finishChange(e: WinElement, tok: ChangeToken, skipValidation?: b
 // Допустимость (project — для сервера API; по умолчанию текущий проект): у каждого стекла после рамы, створки и штапика ширина и высота > 0, квоты делений ≥ MIN_CELL.
 export function isElementValid(e: WinElement, project?: Project | null): boolean {
   if(e.type === 'sill'){
-    const w = parseFloat(String(e.width)), h = parseFloat(String(e.height));
+    const w = parseMm(e.width), h = parseMm(e.height);
     return w > 0 && h > 0;
   }
   try{

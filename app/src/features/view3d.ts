@@ -7,7 +7,7 @@ import { $, showToast } from '../ui/dom.ts';
 import { elementColorHex } from '../data/colors.ts';
 import { findGlass, glassAlpha } from '../data/glass.ts';
 import { profileFor, sashBand, sashProfile } from '../data/profiles.ts';
-import { computeLayout, insetRect } from '../model/layout.ts';
+import { computeLayout, insetRect, parseMm } from '../model/layout.ts';
 import { HINGE_T, OPPOSITE_EDGE, edgePoint, handleAnchor, tintHex } from '../render/svg.ts';
 import { currentElement, getCurrentProject } from '../storage.ts';
 
@@ -248,7 +248,7 @@ function v3dBuild(e: WinElement, project: Project | undefined): Model {
   return { groups, W, H, D };
 }
 function v3dBuildSill(e: WinElement, project: Project | undefined): Model {
-  const W = parseFloat(String(e.width)) || DEFAULT_W, dep = parseFloat(String(e.height)) || 300;
+  const W = parseMm(e.width) || DEFAULT_W, dep = parseMm(e.height) || 300;
   const col: Col = v3dRgb(elementColorHex(e, project) || '#ffffff').concat(V3D_WOOD.has(e.color || '') ? [1, 1] : [1]);
   const base: Group = { mesh:v3dMesh(), glass:v3dMesh(), kind:'static' };
   v3dBox(base.mesh!, 22, 0, 0, W, 22, 0, dep, col);

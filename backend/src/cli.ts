@@ -40,8 +40,12 @@ function needId(v: string | undefined): string {
 }
 function addDays(d: Date, n: number): Date { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
 function toDate(n: string): Date { const v = Number(n); return new Date(Math.floor(v / 10000), Math.floor(v / 100) % 100 - 1, v % 100); }
+// без --days и --days 0 — навсегда; иначе только целое число дней: опечатка («3O», «-30», «30д») — ошибка,
+// а не бессрочная лицензия
 function expFromDays(days: string | undefined): string {
-  const n = Number(days) || 0;
+  if(days === undefined) return '0';
+  if(!/^\d+$/.test(days.trim())) throw new Error('--days: нужно целое число дней (0 — навсегда), а не «' + days + '»');
+  const n = Number(days);
   return n > 0 ? String(dateNum(addDays(new Date(), n))) : '0';
 }
 function fmtExp(exp: string): string { return exp === '0' ? 'навсегда' : exp.slice(6, 8) + '.' + exp.slice(4, 6) + '.' + exp.slice(0, 4); }

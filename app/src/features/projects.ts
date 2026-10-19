@@ -4,7 +4,7 @@ import type { Project, WinElement } from '../types.ts';
 import { $, $input, escapeHtml, showToast } from '../ui/dom.ts';
 import { openConfirm, openSummaryRows } from '../ui/dialogs.ts';
 import { elementColorHex, findColor } from '../data/colors.ts';
-import { layoutForDrawing } from '../model/layout.ts';
+import { layoutForDrawing, parseMm } from '../model/layout.ts';
 import { renumberTree } from '../model/tree.ts';
 import { calcProject, fmtMoney, fmtNum, fmtSummaryMoney } from '../model/pricing.ts';
 import { buildSillSvg, buildSvg } from '../render/svg.ts';
@@ -25,7 +25,7 @@ export function render(filter = ''): void {
         <div class="avatar">${p.number != null ? escapeHtml(String(p.number)) : p.id}</div>
         <div class="project-info">
           <div class="project-name">${escapeHtml(p.name)}</div>
-          <div class="project-meta">${p.date}</div>
+          <div class="project-meta">${escapeHtml(p.date)}</div>
         </div>
       </div>
     `).join('');
@@ -134,7 +134,7 @@ export function renderCanvas(): void {
         <div class="elem-thumb">${elementThumbSvg(e, project)}</div>
         <div class="elem-foot">
           <div class="elem-num">${i + 1}</div>
-          <div class="elem-meta"><div>${e.width} * ${e.height}</div><div>Количество : ${e.qty}</div>${(e.color && !c) ? '<div style="color:var(--danger);font-size:var(--fs-2xs)">Цвет не найден</div>' : ''}</div>
+          <div class="elem-meta"><div>${escapeHtml(e.width)} * ${escapeHtml(e.height)}</div><div>Количество : ${escapeHtml(e.qty)}</div>${(e.color && !c) ? '<div style="color:var(--danger);font-size:var(--fs-2xs)">Цвет не найден</div>' : ''}</div>
         </div>
       </div>
     `;
@@ -144,7 +144,7 @@ export function renderCanvas(): void {
 // миниатюра схемы для карточки: та же отрисовка, что на экране элемента; у градиента стекла свой id, клики убраны
 function elementThumbSvg(e: WinElement, project: Project): string {
   if(e.type === 'sill'){
-    const W = parseFloat(String(e.width)) || DEFAULT_W, H = parseFloat(String(e.height)) || DEFAULT_H;
+    const W = parseMm(e.width) || DEFAULT_W, H = parseMm(e.height) || DEFAULT_H;
     return buildSillSvg(W, H, elementColorHex(e, project)).replace('<svg ', '<svg preserveAspectRatio="xMidYMid meet" ');
   }
   const out = layoutForDrawing(e, project);

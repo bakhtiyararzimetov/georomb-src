@@ -4,7 +4,7 @@ import { notifyDataChanged } from '../storage.ts';
 import type { Mat, PriceSettings, Project, Rect, SubLayout, TreeNode, WasteMode, WinElement } from '../types.ts';
 import { projectMat } from '../data/colors.ts';
 import { NET_OVERLAP, REINF_MULLION_OFFSET, profileFor, sashInset, sashOverhang, sashProfile } from '../data/profiles.ts';
-import { computeLayout, insetRect, layoutNode } from './layout.ts';
+import { computeLayout, insetRect, layoutNode, parseMm } from './layout.ts';
 import { cutOptimize } from './cutOptimizer.ts';
 
 export const PRICE_STORAGE_KEY = 'iwd.priceSettings.v2';
@@ -140,7 +140,23 @@ const reinfOffset = () => (S.cutting && S.cutting.reinfOffset >= 0) ? S.cutting.
 //   рама и створка: периметр по ВНЕШНЕЙ кромке + припуск на сварку weld*2 на сторону;
 //   импост: длина стороны ячейки + weld*2; створка: внешний размер = ячейка + 2*(sashB − sashGap);
 //   стекло/панель: (ячейка перед штапиком − 2*glassGap). Штапик, Interlock и Front Locking в длину не входят.
+/** Ближайшая ширина полки из прайса (см) к глубине отдельного подоконника; при равенстве — бо́льшая. */
+function nearestSillWidth(depthMm: number): number {
+  const cm = depthMm / 10;
+  return SILL_WIDTHS.reduce((best, w) => Math.abs(w - cm) <= Math.abs(best - cm) ? w : best, SILL_WIDTHS[0]);
+}
+function sillGeometry(e: WinElement): Geometry {
+  // отдельный подоконник: ширина элемента — длина, высота — глубина полки (как в раскрое и 3D)
+  const W = parseMm(e.width), H = parseMm(e.height);
+  const len = W > 0 ? W : 0, depth = H > 0 ? H : 200;
+  return { W: len, H: depth, area: 0, frameLen: 0, mullionLen: 0, sashWinLen: 0, sashDoorLen: 0,
+           glassArea: 0, panelArea: 0, sashCount: 0, acc: {}, sillLen: len / 1000, sillWidth: nearestSillWidth(depth),
+           profileLen: 0, len: {}, pieces: { frame:[], mullion:[], wSash:[], dSash:[], slidFrame:[], slidSash:[], bead:[], panel:[], reinf:[], net:[] },
+           glasses: [], nets: [], netArea: 0, reinfLen: 0 };
+}
+
 export function elementGeometry(e: WinElement, mat: Mat): Geometry {
+  if(e.type === 'sill') return sillGeometry(e);
   const prof = profileFor({ type:mat });
   const out = computeLayout(e, prof);
   const { W, H } = out;
@@ -274,7 +290,7 @@ export function calcElement(e: WinElement, project: Project | null | undefined):
   const reinfCost = g.reinfLen * (ps.reinf || 0);
   const netCost   = g.netArea * (ps.net || 0);
   const unit = profileCost + glassCost + panelCost + sillCost + accCost + reinfCost + netCost;
-  const qty  = parseFloat(String(e.qty)) || DEFAULT_QTY;
+  const q = parseMm(e.qty), qty = (Number.isFinite(q) && q >= 0) ? q : DEFAULT_QTY;   // 0 шт — это 0, а не 1
   return { g, qty, mat, profileCost, glassCost, panelCost, sillCost, accCost, reinfCost, netCost, unit, total: unit * qty };
 }
 

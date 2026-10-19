@@ -34,8 +34,7 @@ test('битый JSON: приложение стартует на проекта
   assert.equal(S.projects.length, DEMO.length);
 });
 
-test('битый JSON не затирается при следующем сохранении',
-  { todo: 'Важно: loadProjects молча берёт демо-проекты, первый же saveProjects перезаписывает iwd.projects.v1 — сырые данные для восстановления потеряны' }, () => {
+test('битый JSON не затирается при следующем сохранении', () => {
   const raw = '{"projects":[' + JSON.stringify(good(5)) + ',{"id":6,"name":"обрыв';
   ls.setItem(PROJECTS_STORAGE_KEY, raw);
   loadProjects();
@@ -44,15 +43,13 @@ test('битый JSON не затирается при следующем сох
   assert.ok(kept, 'исходная (повреждённая) копия нигде не сохранена');
 });
 
-test('один проект без id не уничтожает все остальные',
-  { todo: 'БАГ: storage.ts:100 — every(...) по всем проектам: одна запись без id → все проекты заменяются демо, следующее сохранение стирает их' }, () => {
+test('один проект без id не уничтожает все остальные', () => {
   ls.setItem(PROJECTS_STORAGE_KEY, JSON.stringify({ projects: [good(5), good(6), { name: 'без id', elements: [] }], nextId: 7 }));
   loadProjects();
   assert.ok(S.projects.some(p => p.id === 5) && S.projects.some(p => p.id === 6), 'загружено: ' + S.projects.map(p => p.name).join(', '));
 });
 
-test('проект без имени не роняет список проектов при запуске',
-  { todo: 'БАГ: loadProjects чинит phone/address/description, но не name; projects.render() падает на p.name.toLowerCase()' }, () => {
+test('проект без имени не роняет список проектов при запуске', () => {
   ls.setItem(PROJECTS_STORAGE_KEY, JSON.stringify({ projects: [{ id: 5, date: '', elements: [] }] }));
   loadProjects();
   assert.doesNotThrow(() => projects.render(''));
@@ -63,8 +60,7 @@ test('битые настройки цен: дефолты', () => {
   assert.deepEqual(loadPriceSettings(), clonePriceDefaults());
 });
 
-test('переполнение localStorage: пользователь узнаёт, что проект не сохранён',
-  { todo: 'Важно: saveProjects глотает QuotaExceededError (storage.ts:92) — ни тоста, ни флага; после перезапуска изменения пропадают' }, () => {
+test('переполнение localStorage: пользователь узнаёт, что проект не сохранён', () => {
   ls.quotaBytes = 100;
   S.projects = [good(1)];
   saveProjects();

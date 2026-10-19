@@ -6,6 +6,9 @@ import {
 } from '../data/profiles.ts';
 import { ensureRoot, flattenSameDir } from './tree.ts';
 
+/** Размер или количество из данных: число или строка, запятая — дробная часть («1500,5»). Не число — NaN. */
+export function parseMm(v: unknown): number { return parseFloat(String(v).replace(',', '.')); }
+
 export function insetRect(r: Rect, d: number): Rect { return { x:r.x+d, y:r.y+d, w:r.w-2*d, h:r.h-2*d }; }
 
 // ── Геометрия деления: 4-угольник [лево-верх, право-верх, право-низ, лево-низ] ──
@@ -144,8 +147,8 @@ function applySlidingSashes(out: Layout, inner: Rect, profile: Profile): void {
 export function computeLayout(e: WinElement, profile?: Profile): Layout {
   profile = profile || profileFor(null);
   const root = ensureRoot(e);
-  const W = parseFloat(String(e.width))  || DEFAULT_W;
-  const H = parseFloat(String(e.height)) || DEFAULT_H;
+  const W = parseMm(e.width)  || DEFAULT_W;
+  const H = parseMm(e.height) || DEFAULT_H;
   const frameT = (e.type === 'sliding') ? profile.slidFrame : profile.frame;
   const inner: Rect = { x:frameT, y:frameT, w:W - 2*frameT, h:H - 2*frameT };
   const out: Layout = { leaves:[], mullions:[], W, H, inner, bead:profile.bead, profile, frameT, hasSill: !!e.sill, allMullions:[] };
@@ -168,7 +171,7 @@ export function computeLayout(e: WinElement, profile?: Profile): Layout {
 
 // раскладка для рисования: профиль утолщается на больших окнах (одинаково для карточки, экрана и PDF)
 export function layoutForDrawing(e: WinElement, project: Project | null | undefined): Layout {
-  const W = parseFloat(String(e.width))  || DEFAULT_W;
-  const H = parseFloat(String(e.height)) || DEFAULT_H;
+  const W = parseMm(e.width)  || DEFAULT_W;
+  const H = parseMm(e.height) || DEFAULT_H;
   return computeLayout(e, visualProfile(profileFor(project), W, H));
 }

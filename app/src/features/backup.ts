@@ -121,9 +121,13 @@ export async function confirmExportSelected(): Promise<void> {
 }
 
 // --- проверка и пересборка данных файла ---
-const IMPORT_MAX_PROJECTS = 500, IMPORT_MAX_ELEMENTS = 500, IMPORT_MAX_NODES = 300, IMPORT_MAX_DEPTH = 12;
+const IMPORT_MAX_PROJECTS = 5000, IMPORT_MAX_ELEMENTS = 500, IMPORT_MAX_NODES = 300, IMPORT_MAX_DEPTH = 12;
+// импостов в одной цепочке: витрина может быть из многих полей (инструмент MV1, flattenSameDir) — лишь бы узлов ≤ IMPORT_MAX_NODES
+const IMPORT_MAX_CHILDREN = 100;
 const safeText = (v: unknown, max: number, def?: string): string => {
-  const t = (typeof v === 'string' || typeof v === 'number') ? String(v).replace(/[<>&"'`]/g, '').trim().slice(0, max) : '';
+  // убираем только то, из чего собирается разметка; & и кавычки — обычные символы названий («ООО "Окна & Двери"»),
+  // при выводе их экранирует escapeHtml
+  const t = (typeof v === 'string' || typeof v === 'number') ? String(v).replace(/[<>`\u0000-\u001f\u007f]/g, '').trim().slice(0, max) : '';
   return t || (def || '');
 };
 const safeNum = (v: unknown, min: number, max: number): number | null => { const n = Number(v); return (isFinite(n) && n >= min && n <= max) ? n : null; };
@@ -135,7 +139,7 @@ function cleanNode(n: unknown, depth: number, counter: { n: number }): TreeNode 
   const out: TreeNode = { nid: S.nextNodeId++, kind:'leaf' };
   if(src.kind === 'branch'){
     const children = src.children;
-    if(!Array.isArray(children) || children.length < 2 || children.length > 8) throw new Error('bad branch');
+    if(!Array.isArray(children) || children.length < 2 || children.length > IMPORT_MAX_CHILDREN) throw new Error('bad branch');
     out.kind = 'branch';
     out.dir = (src.dir === 'h') ? 'h' : 'v';
     out.children = children.map(c => cleanNode(c, depth + 1, counter));
@@ -166,7 +170,7 @@ function cleanElement(e: unknown, project: Project): WinElement | null {
   if(!type || width === null || height === null || qty === null) return null;
   const el: WinElement = { id: S.nextElemId++, type, width, height, qty, color: null, history: [], redo: [] };
   const col = safeText(src.color, 40);
-  if(col) el.color = col;
+  if(col && /^[A-Za-z0-9_-]+$/.test(col)) el.color = col;     // код каталога (ral9016, oak_golden…)
   const gl = safeText(src.glass, 20);
   if(gl && GLASS_TYPES.some(g => g.code === gl)) el.glass = gl;
   if(typeof src.slidingTemplate === 'string' && SLIDING_TEMPLATES[src.slidingTemplate]) el.slidingTemplate = src.slidingTemplate;
@@ -225,6 +229,7 @@ export async function importProjectsFromFile(input: HTMLInputElement): Promise<v
     const have = new Set(S.projects.map(projectFingerprint));   // повторный импорт той же копии не дублирует проекты
     let added = 0, skipped = 0, dups = 0;
     const fresh: Project[] = [];
+    const overLimit = Math.max(0, (data.projects as unknown[]).length - IMPORT_MAX_PROJECTS);
     (data.projects as unknown[]).slice(0, IMPORT_MAX_PROJECTS).forEach(raw => {
       const src = raw as Raw | null;
       if(!src || typeof src !== 'object') return;
@@ -292,9 +297,14 @@ export async function importProjectsFromFile(input: HTMLInputElement): Promise<v
       saveCuttingSettings(S.cutting);
       msg += ' Настройки раскроя загружены.';
     }
-    saveProjects();
+    if(!saveProjects()){
+      rerenderList();
+      showToast('Проекты не сохранены: память телефона заполнена. Удалите старые проекты и повторите импорт.', 6000);
+      return;
+    }
     rerenderList();
     if(await adoptBackupCode(data.licenseCode)) msg += ' Активация восстановлена.';
+    if(overLimit) msg += ' Пропущено проектов сверх ' + IMPORT_MAX_PROJECTS + ': ' + overLimit + '.';
     showToast('Импортировано проектов: ' + added + (skipped ? ' (пропущено элементов: ' + skipped + ')' : '')
       + (dups ? ', уже были: ' + dups : '') + '.' + msg);
   }catch(err){

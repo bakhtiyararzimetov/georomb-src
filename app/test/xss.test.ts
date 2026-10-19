@@ -18,15 +18,13 @@ test('имя проекта экранируется в списке проек�
   assert.ok(!dom.el('list').innerHTML.includes('<img'));
 });
 
-test('дата проекта экранируется в списке проектов',
-  { todo: 'Мелочь: projects.ts:28 выводит ${p.date} без escapeHtml (из бэкапа дата чистится safeText, из localStorage — нет)' }, () => {
+test('дата проекта экранируется в списке проектов', () => {
   S.projects = [{ id: 1, number: 1, name: 'x', date: PAYLOAD, type: 'pvc', elements: [] } as Project];
   projects.render('');
   assert.ok(!dom.el('list').innerHTML.includes('<img'), dom.el('list').innerHTML);
 });
 
-test('размеры/количество элемента экранируются на экране проекта',
-  { todo: 'Мелочь: projects.ts:137 выводит ${e.width} * ${e.height} и ${e.qty} без экранирования (тип поля number | string)' }, () => {
+test('размеры/количество элемента экранируются на экране проекта', () => {
   const p = { id: 1, number: 1, name: 'x', date: '', type: 'pvc', elements: [
     { id: 1, type: 'casement', width: PAYLOAD, height: 1200, qty: 1, color: null, history: [], redo: [] }] } as unknown as Project;
   S.projects = [p]; S.currentProjectId = 1;
