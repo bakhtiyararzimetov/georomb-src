@@ -1,0 +1,12 @@
+# gcloud run deploy --source . загружает в Google только то, что нужно серверу (см. Dockerfile).
+# Ключи, база лицензий, .env и keystore сюда не попадают.
+/*
+!/Dockerfile
+!/.dockerignore
+!/package.json
+!/package-lock.json
+!/app/
+/app/*
+!/app/src/
+!/server/
+/server/test/

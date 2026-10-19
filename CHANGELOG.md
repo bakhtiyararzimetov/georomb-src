@@ -21,6 +21,7 @@
 - `?lang=uz|ky` — подписи PDF на узбекском и кыргызском.
 - `GET /docs` — документация в Swagger UI (Authorize, Try it out, пример проекта); `GET /openapi.json` — описание API (OpenAPI 3.1), адрес сервера — из `PUBLIC_URL`.
 - `npm run api-key` — новый ключ вида `gr_…`.
+- Выкладка в Google Cloud Run: `scripts/deploy-cloudrun.sh` и `.gcloudignore` (в Google уходят только файлы сервера).
 - `Dockerfile`: образ только с сервером, проверка `/health`, при остановке начатые PDF дорисовываются.
 
 ### Исправлено (API)

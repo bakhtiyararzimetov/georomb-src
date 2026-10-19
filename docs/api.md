@@ -32,6 +32,22 @@ docker run -p 3000:3000 -e API_KEYS=<ключ> georomb-api
 
 В образе только сервер и нужные ему файлы `app/src`; контейнер проверяет себя через `/health` и при остановке дорисовывает начатые PDF.
 
+### Google Cloud Run
+
+Бесплатного лимита Cloud Run (около 2 млн запросов в месяц) для бота хватает с запасом. Нужен проект в Google Cloud с привязанной картой (без неё Cloud Run не включается).
+
+1. Собрать архив только с файлами сервера (ключей и базы лицензий в нём нет): `git archive -o ~/Downloads/georomb-api.tar.gz HEAD Dockerfile .dockerignore .gcloudignore package.json package-lock.json app/src server scripts/deploy-cloudrun.sh`.
+2. В консоли Google Cloud открыть **Cloud Shell** (значок терминала справа вверху), в меню **⋮ → Upload** загрузить архив.
+3. В Cloud Shell:
+   ```bash
+   mkdir -p georomb && tar xzf georomb-api.tar.gz -C georomb && cd georomb
+   API_KEYS=gr_… bash scripts/deploy-cloudrun.sh
+   ```
+   На вопросы gcloud (включить API, создать репозиторий для образов) ответить `Y`. Сборка идёт 3–5 минут, в конце скрипт печатает адрес вида `https://georomb-api-….run.app/docs`.
+
+Повторная выкладка после изменений — те же шаги с новым архивом. Регион по умолчанию `europe-west1`, другой: `REGION=… bash scripts/deploy-cloudrun.sh`.
+
+
 Нужен Node.js 26 или новее: он запускает `.ts` без сборки.
 
 ## Запрос
