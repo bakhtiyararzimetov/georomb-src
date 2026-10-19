@@ -135,3 +135,41 @@ export async function signCode(priv: JsonWebKey, id: string, exp: string): Promi
 export async function signRevokedFile(priv: JsonWebKey, ids: string[], lic: ListLicense[], ts: number = Math.floor(Date.now() / 1000)): Promise<RevokedFile> {
   return { v: LIST_VERSION, ts, ids, lic, sig: bytesToB64u(await signBytes(priv, listPayload(ts, ids, lic))) };
 }
+
+// ── Часы и обязательная проверка по сети ──
+// Срок кода сверяется с часами телефона, поэтому запоминаем самое позднее виденное время (seen) и время
+// последней удачной проверки списка по сети (online). Перевод даты назад больше чем на сутки или 30 дней
+// без интернета — блок до проверки. Date.now() — время UTC, смена часового пояса его не двигает.
+export const CLOCK_SLACK_MS = 24 * 3600 * 1000;
+export const OFFLINE_DAYS = 30;
+const DAY_MS = 86400000;
+export interface ClockState { seen: number; online: number; }   // мс; 0 — ещё не было
+export type ClockVerdict = 'ok' | 'clock' | 'offline';
+
+/** floor — время, раньше которого часы быть не могут (сборка приложения, подпись списка). */
+export function clockVerdict(now: number, st: ClockState, floor: number): ClockVerdict {
+  if(now < Math.max(st.seen, floor) - CLOCK_SLACK_MS) return 'clock';
+  if(st.online > 0 && Math.max(now, st.seen) - st.online > OFFLINE_DAYS * DAY_MS) return 'offline';
+  return 'ok';
+}
+/** После проверки без блока: seen только растёт, первый запуск начинает отсчёт дней без сети. */
+export function clockAfterCheck(now: number, st: ClockState): ClockState {
+  return { seen: Math.max(st.seen, now), online: st.online || now };
+}
+/** Приложение проработало elapsed мс (по монотонному таймеру): «заморозка» даты перед каждым запуском не останавливает счёт. */
+export function clockAfterRun(now: number, elapsed: number, st: ClockState): ClockState {
+  return { seen: Math.max(st.seen + Math.max(0, elapsed), now), online: st.online };
+}
+/** Список получен по сети; server — время сервера (заголовок Date), null — неизвестно. */
+export function clockAfterOnline(now: number, server: number | null, st: ClockState): ClockState {
+  return server !== null ? { seen: server, online: server } : { seen: Math.max(st.seen, now), online: now };
+}
+export function offlineDaysLeft(now: number, st: ClockState): number {
+  if(!st.online) return OFFLINE_DAYS;
+  return Math.max(0, Math.ceil((st.online + OFFLINE_DAYS * DAY_MS - now) / DAY_MS));
+}
+export function parseHttpDate(v: unknown): number | null {
+  if(typeof v !== 'string' || !v) return null;
+  const t = Date.parse(v);
+  return isFinite(t) ? t : null;
+}

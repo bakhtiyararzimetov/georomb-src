@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 export default defineConfig({
   root: fileURLToPath(new URL('.', import.meta.url)),
   base: './',
+  // время сборки — нижняя граница для часов телефона при проверке лицензии
+  define: { __BUILD_TS__: String(Date.now()) },
   build: {
     outDir: 'dist',
     emptyOutDir: true,

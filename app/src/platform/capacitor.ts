@@ -10,6 +10,10 @@ interface CapPlugins {
     checkPermissions(): Promise<{ publicStorage: string }>;
     requestPermissions(): Promise<{ publicStorage: string }>;
   };
+  // встроен в Capacitor: запрос из нативного кода, поэтому видны все заголовки ответа (в WebView Date скрыт CORS)
+  CapacitorHttp?: {
+    get(o: { url: string; headers?: Record<string, string>; connectTimeout?: number; readTimeout?: number }): Promise<{ status: number; headers: Record<string, string>; data: unknown }>;
+  };
   Share?: { share(o: { title?: string; text?: string; url?: string; dialogTitle?: string }): Promise<unknown> };
   App?: {
     minimizeApp?(): Promise<void>;

@@ -7,7 +7,8 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  CODE_PREFIX, bytesToB64u, codePayload, dateNum, signCode, signRevokedFile, verifyCode, verifyRevokedFile
+  CLOCK_SLACK_MS, CODE_PREFIX, OFFLINE_DAYS, bytesToB64u, clockAfterCheck, clockAfterOnline, clockAfterRun, clockVerdict, codePayload, dateNum,
+  offlineDaysLeft, parseHttpDate, signCode, signRevokedFile, verifyCode, verifyRevokedFile
 } from '../../shared/license.ts';
 
 const pair = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
@@ -63,6 +64,63 @@ test('revoked.json: подпись покрывает ids, lic и ts; мусор
 test('dateNum — по местному времени устройства', () => {
   assert.equal(dateNum(new Date(2026, 0, 5, 23, 59)), 20260105);
   assert.equal(dateNum(new Date(2026, 11, 31, 0, 0)), 20261231);
+});
+
+const DAY = 86400000, T0 = Date.UTC(2026, 9, 19);
+
+test('часы: перевод даты назад больше чем на сутки — блок, мелкая поправка — нет', () => {
+  const st = { seen: T0, online: T0 };
+  assert.equal(clockVerdict(T0 - CLOCK_SLACK_MS + 1, st, 0), 'ok');
+  assert.equal(clockVerdict(T0 - CLOCK_SLACK_MS - 1, st, 0), 'clock');
+  assert.equal(clockVerdict(T0 - 30 * DAY, st, 0), 'clock');
+  // нижняя граница без истории: дата сборки или метка подписанного списка
+  assert.equal(clockVerdict(T0 - 2 * DAY, { seen: 0, online: 0 }, T0), 'clock');
+  assert.equal(clockVerdict(T0, { seen: 0, online: 0 }, T0), 'ok');
+});
+
+test('без интернета: 30 дней работает, на 31-й — блок; первый запуск начинает отсчёт', () => {
+  const st = { seen: T0, online: T0 };
+  assert.equal(clockVerdict(T0 + OFFLINE_DAYS * DAY, st, 0), 'ok');
+  assert.equal(clockVerdict(T0 + OFFLINE_DAYS * DAY + 1, st, 0), 'offline');
+  assert.equal(clockVerdict(T0 + 400 * DAY, { seen: 0, online: 0 }, 0), 'ok', 'обновление с 1.2: отсчёт ещё не начат');
+  assert.deepEqual(clockAfterCheck(T0 + 5, { seen: 0, online: 0 }), { seen: T0 + 5, online: T0 + 5 });
+  assert.deepEqual(clockAfterCheck(T0 - 5, st), { seen: T0, online: T0 }, 'seen не уменьшается');
+});
+
+test('проверка по сети: время сервера важнее часов телефона', () => {
+  const st = { seen: T0, online: T0 - 10 * DAY };
+  // часы отстают от сервера — блок, даже если в истории дата раньше
+  const back = clockAfterOnline(T0 - 5 * DAY, T0 + DAY, { seen: 0, online: 0 });
+  assert.equal(clockVerdict(T0 - 5 * DAY, back, 0), 'clock');
+  assert.equal(back.online, T0 + DAY, 'проверка по сети засчитана');
+  // по ошибке ушедшие вперёд часы исправлены — сервер снимает ложный блок
+  const fixed = clockAfterOnline(T0, T0, { seen: T0 + 300 * DAY, online: T0 });
+  assert.equal(clockVerdict(T0, fixed, 0), 'ok');
+  // без времени сервера (браузер): засчитываем по часам телефона, seen не уменьшается
+  assert.deepEqual(clockAfterOnline(T0 - DAY, null, st), { seen: T0, online: T0 - DAY });
+});
+
+test('заморозка даты: время работы приложения копится, и блок всё равно наступает', () => {
+  let st = { seen: T0, online: T0 };
+  // каждый запуск часы снова на T0, а приложение работает по 2 часа
+  for(let i = 0; i < 12; i++) st = clockAfterRun(T0, 2 * 3600e3, st);
+  assert.equal(clockVerdict(T0, st, 0), 'ok', '24 часа работы — ещё в пределах поправки');
+  st = clockAfterRun(T0, 3600e3, st);
+  assert.equal(clockVerdict(T0, st, 0), 'clock');
+  // нормальные часы: seen не убегает вперёд настоящего времени
+  assert.deepEqual(clockAfterRun(T0 + DAY, 3600e3, { seen: T0, online: T0 }), { seen: T0 + DAY, online: T0 });
+  assert.deepEqual(clockAfterRun(T0, -5, { seen: T0, online: T0 }), { seen: T0, online: T0 }, 'отрицательный интервал не считается');
+  // 30 дней без сети считаются и по накопленному времени
+  assert.equal(clockVerdict(T0, { seen: T0 + 31 * DAY, online: T0 }, 0), 'clock');
+  assert.equal(clockVerdict(T0 + 31 * DAY, { seen: T0 + 31 * DAY, online: T0 }, 0), 'offline');
+});
+
+test('дней до обязательной проверки и разбор заголовка Date', () => {
+  assert.equal(offlineDaysLeft(T0 + 25 * DAY, { seen: 0, online: T0 }), 5);
+  assert.equal(offlineDaysLeft(T0 + 25 * DAY + 1, { seen: 0, online: T0 }), 5);
+  assert.equal(offlineDaysLeft(T0, { seen: 0, online: 0 }), OFFLINE_DAYS);
+  assert.equal(parseHttpDate('Mon, 19 Oct 2026 00:00:00 GMT'), T0);
+  for(const x of [undefined, null, '', 'вчера', 42]) assert.equal(parseHttpDate(x), null);
 });
 
 // CLI лицензий: команда add-list не требует закрытого ключа, база — во временной папке
