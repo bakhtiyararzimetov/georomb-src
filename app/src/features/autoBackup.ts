@@ -114,3 +114,70 @@ export function createAutoBackup(o: AutoBackupOptions): { schedule(): void; flus
   }
   return { schedule, flush };
 }
+
+// ===== Папка, которую выбрал пользователь (Android: системный выбор папки, плагин FolderAccess) =====
+// Доступ к папке остаётся и после перезапуска, а после переустановки её достаточно выбрать снова —
+// приложению видны все файлы в ней, в том числе копии прошлой установки.
+export interface FolderFile { name: string; modified: number; }   // modified — мс, 0 — неизвестно
+export interface FolderApi {
+  pick(): Promise<{ uri: string; name: string }>;                 // отмена — reject
+  current(): Promise<{ uri: string | null; name: string | null }>;
+  list(): Promise<{ files: FolderFile[] }>;
+  read(o: { name: string }): Promise<{ data: string }>;
+  write(o: { name: string; data: string }): Promise<unknown>;
+  remove(o: { name: string }): Promise<unknown>;
+}
+const baseName = (path: string) => path.split('/').pop() || path;
+
+/** BackupFs поверх выбранной папки: файлы кладутся прямо в неё (без подпапки GeoRomb). */
+export function folderFs(fa: FolderApi): BackupFs {
+  return {
+    writeFile: o => fa.write({ name: baseName(o.path), data: o.data }),
+    readdir: async () => ({ files: (await fa.list()).files.map(f => f.name) }),
+    deleteFile: o => fa.remove({ name: baseName(o.path) })
+  };
+}
+
+/** Копии GeoRomb в папке от свежей к старой: по времени изменения, при равном — по дате в имени. */
+export function backupsNewestFirst(files: FolderFile[]): string[] {
+  return files.filter(f => NAME_RE.test(f.name))
+    .sort((a, b) => (b.modified - a.modified) || (b.name < a.name ? -1 : b.name > a.name ? 1 : 0))
+    .map(f => f.name);
+}
+export const newestBackup = (files: FolderFile[]): string | null => backupsNewestFirst(files)[0] ?? null;
+
+/**
+ * Куда пишется автокопия: в выбранную папку, если она есть, иначе в Documents/GeoRomb.
+ * Пока не пришёл ответ «какая папка выбрана» (current()), ни запись, ни запрос разрешения не начинаются —
+ * иначе первая копия после запуска уходила бы в Documents. Папка недоступна (удалили, провайдер не пишет) —
+ * копия всё равно сохраняется в Documents, а onFolderFail сообщает об этом один раз.
+ */
+export function createBackupTarget(docs: BackupFs, fa: FolderApi | null, onFolderFail: (folder: string) => void) {
+  let name: string | null = null, warned = false;
+  const inFolder = fa ? folderFs(fa) : null;
+  const ready: Promise<void> = fa
+    ? fa.current().then(c => { if(c.uri && name === null) name = c.name || 'GeoRomb'; }, () => {})
+    : Promise.resolve();
+  const useFolder = async () => { await ready; return !!(inFolder && name); };
+  const fs: BackupFs = {
+    async writeFile(o){
+      if(await useFolder()){
+        try{ return await inFolder!.writeFile(o); }
+        catch(err){
+          console.warn('Папка для копий недоступна:', err);
+          if(!warned){ warned = true; onFolderFail(name!); }
+        }
+      }
+      return docs.writeFile(o);
+    },
+    readdir: async o => (await useFolder() ? inFolder! : docs).readdir(o),
+    deleteFile: async o => (await useFolder() ? inFolder! : docs).deleteFile(o),
+    checkPermissions: async () => await useFolder() ? { publicStorage: 'granted' } : docs.checkPermissions!(),
+    requestPermissions: async () => await useFolder() ? { publicStorage: 'granted' } : docs.requestPermissions!()
+  };
+  return {
+    fs, ready,
+    folder: (): string | null => name,
+    setFolder(n: string): void { name = n; warned = false; }
+  };
+}

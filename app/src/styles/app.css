@@ -532,6 +532,7 @@
   .cs-switch:checked::after{ transform:translateX(20px); }
   /* пункты настроек: круглая иконка, название и подпись, стрелка справа, разделители на всю ширину */
   .menu-list{ margin:0 -14px; border-top:1px solid var(--line); }
+  [hidden]{ display:none !important; }     /* скрытые строки меню и подсказки: иначе display:flex сильнее атрибута */
   .menu-row{
     display:flex; align-items:center; gap:14px; padding:14px 16px; cursor:pointer;
     border-bottom:1px solid var(--line); background:transparent;

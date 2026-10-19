@@ -14,6 +14,8 @@ interface CapPlugins {
   CapacitorHttp?: {
     get(o: { url: string; headers?: Record<string, string>; connectTimeout?: number; readTimeout?: number }): Promise<{ status: number; headers: Record<string, string>; data: unknown }>;
   };
+  // свой плагин (android/.../FolderAccessPlugin.java): папка, выбранная пользователем через системный диалог
+  FolderAccess?: import('../features/autoBackup.ts').FolderApi;
   Share?: { share(o: { title?: string; text?: string; url?: string; dialogTitle?: string }): Promise<unknown> };
   App?: {
     minimizeApp?(): Promise<void>;

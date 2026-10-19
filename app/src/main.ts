@@ -83,6 +83,7 @@ const handlers = {
   openExportPicker: backup.openExportPicker, closeExportPicker: backup.closeExportPicker, toggleExportSelect: backup.toggleExportSelect,
   exportPickToggleAll: backup.exportPickToggleAll, confirmExportSelected: backup.confirmExportSelected,
   importProjects: backup.importProjects, importProjectsFromFile: backup.importProjectsFromFile,
+  restoreFromCopy: backup.restoreFromCopy, chooseBackupFolder: backup.chooseBackupFolder,
   // меню по долгому нажатию
   pcmAction: menus.pcmAction, pcmBackdropClick: menus.pcmBackdropClick, pecmAction: menus.pecmAction, pecmBackdropClick: menus.pecmBackdropClick,
   // стёкла и сетки, язык PDF

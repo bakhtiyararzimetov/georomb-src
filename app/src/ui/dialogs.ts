@@ -7,8 +7,10 @@ import { getCurrentProject } from '../storage.ts';
 
 // ===== Подтверждение =====
 let confirmCallback: (() => void) | null = null;
-export function openConfirm(text: string, onOk: () => void): void {
+/** okLabel — надпись на кнопке подтверждения (по умолчанию «Удалить»). */
+export function openConfirm(text: string, onOk: () => void, okLabel = 'Удалить'): void {
   $('confirmTitle').textContent = text;
+  $('confirmOkBtn').textContent = okLabel;
   confirmCallback = onOk;
   $('confirmBackdrop').classList.add('open');
 }

@@ -1,7 +1,8 @@
-// Копирует собранный фронтенд (app/dist) в папку webDir Capacitor-проекта и делает резервную копию старой.
+// Копирует собранный фронтенд (app/dist) в папку webDir Capacitor-проекта (старую сохраняет рядом)
+// и свой нативный код native/android/*.java в Android-проект.
 // Запуск: npm run build && npm run cap:copy   (затем в папке Capacitor: npx cap sync android)
 // Путь к www: переменная CAP_WWW, по умолчанию ~/myapp/www (capacitor.config.json → "webDir": "www").
-import { cpSync, existsSync, renameSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, readdirSync, renameSync, rmSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -22,4 +23,12 @@ if(existsSync(www)){
 }
 cpSync(dist, www, { recursive: true });
 rmSync(join(www, '.vite'), { recursive: true, force: true });
+// свой нативный код (плагин FolderAccess и MainActivity) — в Android-проект рядом с www
+const javaDir = join(dirname(www), 'android/app/src/main/java/app/georomb');
+if(existsSync(javaDir)){
+  for(const f of readdirSync(join(root, 'native/android')).filter(n => n.endsWith('.java'))){
+    cpSync(join(root, 'native/android', f), join(javaDir, f));
+    console.log('Нативный код: ' + f + ' → ' + javaDir);
+  }
+}else console.warn('Нет папки ' + javaDir + ' — нативный код (native/android) не скопирован');
 console.log('Скопировано в ' + www + '\nДальше: cd ' + dirname(www) + ' && npx cap sync android');

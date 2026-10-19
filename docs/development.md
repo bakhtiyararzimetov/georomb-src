@@ -16,7 +16,7 @@
 | `npm run preview` | открыть собранное `app/dist` |
 | `npm test` | тесты сервера API |
 | `npm run server` | запустить API (порт из `.env` или `PORT`, по умолчанию 3000) |
-| `npm run cap:copy` | скопировать `app/dist` в `www` Capacitor-проекта |
+| `npm run cap:copy` | скопировать `app/dist` в `www` Capacitor-проекта и свой нативный код `native/android/*.java` (плагин папки для копий) в Android-проект |
 | `npm run license -- <команда>` | CLI лицензий, см. [licensing.md](licensing.md) |
 
 ## Выпуск новой версии APK

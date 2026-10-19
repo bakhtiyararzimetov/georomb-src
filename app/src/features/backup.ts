@@ -11,7 +11,8 @@ import { deliverFile } from '../platform/share.ts';
 import { onDataChanged, saveProjects, withoutHistory } from '../storage.ts';
 import { nativePlugins } from '../platform/capacitor.ts';
 import { ID_ALPHABET } from '../../../shared/license.ts';
-import { BACKUP_DIR, createAutoBackup, projectFingerprint } from './autoBackup.ts';
+import { BACKUP_DIR, backupsNewestFirst, createAutoBackup, createBackupTarget, projectFingerprint, type FolderApi } from './autoBackup.ts';
+import { openConfirm } from '../ui/dialogs.ts';
 import { adoptBackupCode, isUnlocked, onUnlock, storedLicenseCode } from './license.ts';
 import { rerenderList } from './projects.ts';
 import { catalogSaveOff } from './catalog.ts';
@@ -51,31 +52,122 @@ function backupTag(): string {
   }
   return t;
 }
+// Выбранная папка копий (FolderAccess): если есть — копии пишутся туда, иначе — в Documents/GeoRomb
+const FOLDER_ASKED_KEY = 'iwd.backupFolderAsked.v1';
+let target: ReturnType<typeof createBackupTarget> | null = null;
+let autoBackup: { schedule(): void; flush(): Promise<boolean> } | null = null;
+let picking = false;                                     // системный выбор папки уже открыт (двойное нажатие)
+const folderApi = (): FolderApi | null => nativePlugins()?.FolderAccess || null;
+const folderName = (): string | null => target ? target.folder() : null;
+
+function showBackupPlace(): void {
+  const f = folderName();
+  const where = f ? 'папка «' + f + '»' : 'папка ' + BACKUP_PATH_HINT;
+  const sub = document.getElementById('exportRowSub');
+  if(sub) sub.textContent = 'Сохранить в файл. Автокопия: ' + where;
+  const isub = document.getElementById('importRowSub');
+  if(isub) isub.textContent = f ? 'Из файла (автокопии — в папке «' + f + '»)' : 'Из файла или автокопии: ' + BACKUP_PATH_HINT + ', самый новый файл';
+  const fsub = document.getElementById('folderRowSub');
+  if(fsub) fsub.textContent = f ? 'Сейчас: «' + f + '». Нажмите, чтобы выбрать другую' : 'Не выбрана — копии в ' + BACKUP_PATH_HINT;
+  const hint = document.getElementById('licenseRestoreHint');
+  if(hint){
+    hint.textContent = folderApi()
+      ? 'Переустановили приложение? Нажмите и выберите папку с копиями (GeoRomb) — приложение само возьмёт самую свежую.'
+      : 'Переустановили приложение? Копия проектов лежит в памяти телефона: ' + BACKUP_PATH_HINT + ' — выберите самый новый файл.';
+    hint.hidden = false;
+  }
+}
+
 /** Только в нативном приложении: копия через 3 с после изменений и сразу при сворачивании. */
 export function initAutoBackup(): void {
   const plugins = nativePlugins();
   if(!plugins || !plugins.Filesystem) return;
+  const fa = folderApi();
+  target = createBackupTarget(plugins.Filesystem, fa, f => {
+    showToast('Папка «' + f + '» недоступна — копия сохранена в ' + BACKUP_PATH_HINT + '. Выберите папку заново: Настройки → Папка для копий', 7000);
+  });
   const ab = createAutoBackup({
-    fs: plugins.Filesystem, tag: backupTag(), getJson: () => JSON.stringify(buildBackup(), null, 1),
+    fs: target.fs, tag: backupTag(), getJson: () => JSON.stringify(buildBackup(), null, 1),
     canRun: isUnlocked,                                  // не поверх экрана активации
-    declined: declinedFlag,
+    declined: { get: () => !folderName() && declinedFlag.get(), set: declinedFlag.set },
     beforeAsk: () => showToast('Разрешите доступ к памяти — туда сохраняется копия проектов', 4000)
   });
+  autoBackup = ab;
   onDataChanged(ab.schedule);
-  onUnlock(() => { void ab.flush(); });
+  onUnlock(() => { void ab.flush(); void target!.ready.then(offerBackupFolder); });
   if(plugins.App) plugins.App.addListener('pause', () => { void ab.flush(); });
-  // В файловых менеджерах папка называется «Documents» (по-английски даже на русском телефоне)
-  const sub = document.getElementById('exportRowSub');
-  if(sub) sub.textContent = 'Сохранить в файл. Автокопия: папка ' + BACKUP_PATH_HINT;
-  const isub = document.getElementById('importRowSub');
-  if(isub) isub.textContent = 'Из файла или автокопии: ' + BACKUP_PATH_HINT + ', самый новый файл';
-  const hint = document.getElementById('licenseRestoreHint');
-  if(hint){
-    hint.textContent = 'Переустановили приложение? Копия проектов лежит в памяти телефона: ' + BACKUP_PATH_HINT + ' — выберите самый новый файл.';
-    hint.hidden = false;
-  }
+  const row = document.getElementById('folderRow');
+  if(row && fa) row.hidden = false;
+  showBackupPlace();
+  void target.ready.then(showBackupPlace);
   ab.schedule();                                         // первая копия сразу после запуска
 }
+
+// один раз после активации: предложить отдельную папку (её видно в памяти телефона, и после переустановки
+// проекты возвращаются выбором этой папки)
+function offerBackupFolder(): void {
+  if(!folderApi() || folderName()) return;
+  try{ if(localStorage.getItem(FOLDER_ASKED_KEY)) return; localStorage.setItem(FOLDER_ASKED_KEY, '1'); }catch{ return; }
+  setTimeout(() => {
+    if(folderName()) return;
+    openConfirm('Где хранить копию проектов? Выберите или создайте папку GeoRomb в памяти телефона — она останется, даже если удалить приложение.',
+      () => { void chooseBackupFolder(); }, 'Выбрать папку');
+  }, 800);
+}
+
+// системный выбор папки; null — отменили или выбор уже открыт
+async function pickFolder(fa: FolderApi): Promise<string | null> {
+  if(picking) return null;
+  picking = true;
+  try{
+    const name = (await fa.pick()).name || 'GeoRomb';
+    if(target) target.setFolder(name);
+    showBackupPlace();
+    return name;
+  }catch{ return null; }
+  finally{ picking = false; }
+}
+
+/** Выбор папки для копий (настройки или предложение после активации). */
+export async function chooseBackupFolder(): Promise<void> {
+  const fa = folderApi();
+  if(!fa) return;
+  const name = await pickFolder(fa);
+  if(!name) return;
+  if(autoBackup){ autoBackup.schedule(); void autoBackup.flush(); }
+  showToast('Копии проектов сохраняются в папку «' + name + '»');
+}
+
+const looksLikeBackup = (text: string): boolean => {
+  try{ const d = JSON.parse(text) as Raw | null; return !!d && d.format === BACKUP_FORMAT && Array.isArray(d.projects); }
+  catch{ return false; }
+};
+
+/** «Восстановить из копии»: выбрать папку с копиями — импортируется самая свежая целая. Без плагина — выбор файла. */
+export async function restoreFromCopy(): Promise<void> {
+  const fa = folderApi();
+  if(!fa){ importProjects(); return; }
+  const name = await pickFolder(fa);
+  if(!name) return;
+  try{
+    const files = backupsNewestFirst((await fa.list()).files);
+    if(!files.length){
+      showToast('В папке «' + name + '» нет копий GeoRomb (файлы georomb-backup-…). Выберите папку GeoRomb или Documents → GeoRomb', 6000);
+      return;
+    }
+    // свежая копия могла оборваться (приложение закрыли во время записи) — берём первую целую
+    for(const f of files){
+      let text: string;
+      try{ text = (await fa.read({ name: f })).data; }catch(err){ console.error(err); continue; }
+      if(looksLikeBackup(text)){ await importBackupText(text); return; }
+    }
+    showToast('Копии в папке «' + name + '» повреждены — восстановить не получилось');
+  }catch(err){
+    console.error(err);
+    showToast('Не удалось прочитать копию из папки «' + name + '»');
+  }
+}
+
 async function exportProjects(ids?: number[]): Promise<void> {
   const n = Array.isArray(ids) ? ids.length : S.projects.length;
   if(n === 0){ showToast('Нет проектов для экспорта'); return; }
@@ -253,9 +345,16 @@ export async function importProjectsFromFile(input: HTMLInputElement): Promise<v
   const file = input.files && input.files[0];
   input.value = '';                                     // чтобы тот же файл можно было выбрать снова
   if(!file) return;
+  if(file.size > 30 * 1024 * 1024){ showToast('Файл слишком большой'); return; }
+  let text: string;
+  try{ text = await file.text(); }catch(err){ console.error(err); showToast('Не удалось прочитать файл'); return; }
+  await importBackupText(text);
+}
+/** Импорт содержимого файла копии (выбранного вручную или найденного в папке копий). */
+async function importBackupText(text: string): Promise<void> {
   try{
-    if(file.size > 30 * 1024 * 1024){ showToast('Файл слишком большой'); return; }
-    const data = JSON.parse(await file.text()) as Raw | null;
+    if(text.length > 30 * 1024 * 1024){ showToast('Файл слишком большой'); return; }
+    const data = JSON.parse(text) as Raw | null;
     if(!data || data.format !== BACKUP_FORMAT || !Array.isArray(data.projects)){ showToast('Это не файл резервной копии проектов'); return; }
 
     const before = { projects: S.projects, nextId: S.nextId, nextElemId: S.nextElemId, nextNodeId: S.nextNodeId };   // для отката

@@ -1,7 +1,7 @@
 // Автокопия в «Документы/GeoRomb»: файл переживает удаление приложения, его потом открывает «Импорт проектов».
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { BACKUP_DIR, backupFileName, createAutoBackup, filesToPrune, projectFingerprint, type BackupFs } from '../src/features/autoBackup.ts';
+import { BACKUP_DIR, backupFileName, backupsNewestFirst, createAutoBackup, createBackupTarget, filesToPrune, folderFs, newestBackup, projectFingerprint, type BackupFs, type FolderApi } from '../src/features/autoBackup.ts';
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 const day = (s: string) => new Date(s + 'T12:00:00');
@@ -141,4 +141,94 @@ test('два flush одновременно — одна запись', async ()
   const [a, b] = await Promise.all([ab.flush(), ab.flush()]);
   assert.deepEqual([a, b].sort(), [false, true]);
   assert.equal(f.writes.length, 1);
+});
+
+test('newestBackup: самая свежая копия GeoRomb по времени изменения, чужие файлы не считаются', () => {
+  assert.equal(newestBackup([]), null);
+  assert.equal(newestBackup([{ name: 'фото.jpg', modified: 9e12 }, { name: 'projects-2026-10-01.json', modified: 9e12 }]), null);
+  assert.equal(newestBackup([
+    { name: 'georomb-backup-2026-10-17-AB3D.json', modified: 100 },
+    { name: 'georomb-backup-2026-10-19-ZZZZ.json', modified: 300 },   // прошлая установка, но свежее
+    { name: 'georomb-backup-2026-10-18-AB3D.json', modified: 200 },
+    { name: 'notes.txt', modified: 999 }
+  ]), 'georomb-backup-2026-10-19-ZZZZ.json');
+  // время не известно (0) — по дате в имени
+  assert.equal(newestBackup([{ name: 'georomb-backup-2026-10-17-AB3D.json', modified: 0 }, { name: 'georomb-backup-2026-10-18-AB3D.json', modified: 0 }]),
+    'georomb-backup-2026-10-18-AB3D.json');
+});
+
+test('folderFs: автокопия пишет в выбранную папку по имени файла (без «GeoRomb/»), список и удаление — там же', async () => {
+  const calls: string[] = [];
+  const fa: FolderApi = {
+    async pick(){ return { uri: 'content://x', name: 'GeoRomb' }; },
+    async current(){ return { uri: 'content://x', name: 'GeoRomb' }; },
+    async list(){ calls.push('list'); return { files: [{ name: 'georomb-backup-2026-10-01-AB3D.json', modified: 1 }] }; },
+    async read(o){ calls.push('read ' + o.name); return { data: '{}' }; },
+    async write(o){ calls.push('write ' + o.name + ' ' + o.data); },
+    async remove(o){ calls.push('remove ' + o.name); }
+  };
+  const fs = folderFs(fa);
+  const ab = createAutoBackup({ fs, tag: 'AB3D', getJson: () => '{"v":1}', now: () => day('2026-10-19'), delayMs: 5 });
+  ab.schedule();
+  assert.equal(await ab.flush(), true);
+  assert.deepEqual(calls, ['write georomb-backup-2026-10-19-AB3D.json {"v":1}', 'list', 'remove georomb-backup-2026-10-01-AB3D.json']);
+});
+
+test('backupsNewestFirst: все копии от свежей к старой (если свежая испорчена — пробуем следующую)', () => {
+  assert.deepEqual(backupsNewestFirst([
+    { name: 'georomb-backup-2026-10-17-AB3D.json', modified: 100 },
+    { name: 'x.txt', modified: 500 },
+    { name: 'georomb-backup-2026-10-19-AB3D.json', modified: 300 }
+  ]), ['georomb-backup-2026-10-19-AB3D.json', 'georomb-backup-2026-10-17-AB3D.json']);
+});
+
+function targetFixture(opts: { folder?: string | null; failFolder?: boolean; slowCurrent?: boolean } = {}) {
+  const log: string[] = [];
+  let release!: () => void;
+  const gate = new Promise<void>(r => { release = r; });
+  const docs: BackupFs = {
+    async writeFile(o){ log.push('docs ' + o.path); },
+    async readdir(){ return { files: [] }; },
+    async deleteFile(){},
+    async checkPermissions(){ log.push('docs perm'); return { publicStorage: 'granted' }; },
+    async requestPermissions(){ return { publicStorage: 'granted' }; }
+  };
+  const fa: FolderApi = {
+    async pick(){ return { uri: 'u', name: 'GeoRomb' }; },
+    async current(){ if(opts.slowCurrent) await gate; return opts.folder ? { uri: 'u', name: opts.folder } : { uri: null, name: null }; },
+    async list(){ return { files: [] }; },
+    async read(){ return { data: '' }; },
+    async write(o){ if(opts.failFolder) throw new Error('IO'); log.push('folder ' + o.name); },
+    async remove(){}
+  };
+  const fails: string[] = [];
+  const t = createBackupTarget(docs, fa, name => fails.push(name));
+  return { t, log, fails, release };
+}
+
+test('копия при запуске ждёт ответа «какая папка выбрана» и пишет в неё, а не в Documents', async () => {
+  const { t, log, release } = targetFixture({ folder: 'GeoRomb', slowCurrent: true });
+  const w = t.fs.writeFile({ path: 'GeoRomb/a.json', data: '{}', directory: 'DOCUMENTS', encoding: 'utf8', recursive: true });
+  const p = t.fs.checkPermissions!();
+  release();
+  await w; await p;
+  assert.deepEqual(log, ['folder a.json'], 'ни записи, ни запроса разрешения для Documents');
+  assert.equal(t.folder(), 'GeoRomb');
+});
+
+test('папка не выбрана — как раньше, Documents/GeoRomb', async () => {
+  const { t, log } = targetFixture({ folder: null });
+  await t.fs.writeFile({ path: 'GeoRomb/a.json', data: '{}', directory: 'DOCUMENTS', encoding: 'utf8', recursive: true });
+  assert.deepEqual(log, ['docs GeoRomb/a.json']);
+});
+
+test('выбранная папка недоступна (удалили) — копия всё равно сохраняется в Documents, пользователь узнаёт один раз', async () => {
+  const { t, log, fails } = targetFixture({ folder: 'GeoRomb', failFolder: true });
+  const o = { path: 'GeoRomb/a.json', data: '{}', directory: 'DOCUMENTS', encoding: 'utf8', recursive: true };
+  await t.fs.writeFile(o);
+  await t.fs.writeFile(o);
+  assert.deepEqual(log, ['docs GeoRomb/a.json', 'docs GeoRomb/a.json']);
+  assert.deepEqual(fails, ['GeoRomb']);
+  t.setFolder('Новая');
+  assert.equal(t.folder(), 'Новая');
 });
