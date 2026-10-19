@@ -3,13 +3,8 @@
   "info": {
     "title": "GeoRomb API",
     "version": "1.0.0",
-    "description": "PDF с чертежами окон и дверей для WhatsApp-бота: одна страница A4 на элемент. Подробнее — docs/api.md."
+    "description": "HTTPS JSON API для WhatsApp-бота: проект окон → PDF с чертежами (одна страница A4 на элемент) или координаты в мм.\n\nАдреса — под `/api/v1`. Ключ передаётся в заголовке `X-API-Key: gr_…` или `Authorization: Bearer gr_…` (кнопка **Authorize**). Ошибки всегда JSON: `{ error, message, requestId }`. Лимит — запросов в минуту на ключ, см. заголовки `X-RateLimit-*`."
   },
-  "servers": [
-    {
-      "url": "http://localhost:3000"
-    }
-  ],
   "security": [
     {
       "ApiKey": []
@@ -65,6 +60,71 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/Project"
+              },
+              "example": {
+                "name": "Иванов, ул. Навои 12",
+                "type": "pvc",
+                "phone": "+998 90 123 45 67",
+                "elements": [
+                  {
+                    "type": "casement",
+                    "width": 1500,
+                    "height": 1200,
+                    "qty": 2,
+                    "color": null,
+                    "net": true,
+                    "root": {
+                      "kind": "branch",
+                      "dir": "v",
+                      "children": [
+                        {
+                          "kind": "leaf",
+                          "fill": "glass",
+                          "opening": {
+                            "type": "TiltTurn",
+                            "hinge": "left"
+                          }
+                        },
+                        {
+                          "kind": "leaf",
+                          "fill": "glass",
+                          "opening": null
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "type": "casement",
+                    "width": 800,
+                    "height": 2000,
+                    "qty": 1,
+                    "root": {
+                      "kind": "leaf",
+                      "opening": {
+                        "type": "Door",
+                        "hinge": "right"
+                      },
+                      "inner": {
+                        "kind": "branch",
+                        "dir": "h",
+                        "sizes": [
+                          1200,
+                          556
+                        ],
+                        "children": [
+                          {
+                            "kind": "leaf",
+                            "fill": "glass"
+                          },
+                          {
+                            "kind": "leaf",
+                            "fill": "panelH"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
               }
             }
           }
@@ -76,12 +136,20 @@
               "X-Request-Id": {
                 "schema": {
                   "type": "string"
-                }
+                },
+                "description": "номер запроса (для поиска в логе)"
+              },
+              "X-RateLimit-Limit": {
+                "schema": {
+                  "type": "integer"
+                },
+                "description": "запросов в минуту"
               },
               "X-RateLimit-Remaining": {
                 "schema": {
                   "type": "integer"
-                }
+                },
+                "description": "осталось в этой минуте"
               }
             },
             "content": {
@@ -93,7 +161,7 @@
               },
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/Layout"
                 }
               }
             }
@@ -114,6 +182,14 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "string",
+                  "example": "Bearer"
                 }
               }
             }
@@ -186,7 +262,11 @@
               }
             }
           }
-        }
+        },
+        "tags": [
+          "PDF"
+        ],
+        "description": "Пример ниже — окно 1500×1200 с поворотно-откидной створкой и дверь. Нажмите **Try it out → Execute**: PDF можно скачать прямо со страницы."
       }
     },
     "/health": {
@@ -209,7 +289,10 @@
               }
             }
           }
-        }
+        },
+        "tags": [
+          "Service"
+        ]
       }
     },
     "/openapi.json": {
@@ -220,7 +303,10 @@
           "200": {
             "description": "OpenAPI 3.1"
           }
-        }
+        },
+        "tags": [
+          "Service"
+        ]
       }
     },
     "/api/generate-window-pdf": {
@@ -269,6 +355,71 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/Project"
+              },
+              "example": {
+                "name": "Иванов, ул. Навои 12",
+                "type": "pvc",
+                "phone": "+998 90 123 45 67",
+                "elements": [
+                  {
+                    "type": "casement",
+                    "width": 1500,
+                    "height": 1200,
+                    "qty": 2,
+                    "color": null,
+                    "net": true,
+                    "root": {
+                      "kind": "branch",
+                      "dir": "v",
+                      "children": [
+                        {
+                          "kind": "leaf",
+                          "fill": "glass",
+                          "opening": {
+                            "type": "TiltTurn",
+                            "hinge": "left"
+                          }
+                        },
+                        {
+                          "kind": "leaf",
+                          "fill": "glass",
+                          "opening": null
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "type": "casement",
+                    "width": 800,
+                    "height": 2000,
+                    "qty": 1,
+                    "root": {
+                      "kind": "leaf",
+                      "opening": {
+                        "type": "Door",
+                        "hinge": "right"
+                      },
+                      "inner": {
+                        "kind": "branch",
+                        "dir": "h",
+                        "sizes": [
+                          1200,
+                          556
+                        ],
+                        "children": [
+                          {
+                            "kind": "leaf",
+                            "fill": "glass"
+                          },
+                          {
+                            "kind": "leaf",
+                            "fill": "panelH"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
               }
             }
           }
@@ -280,12 +431,20 @@
               "X-Request-Id": {
                 "schema": {
                   "type": "string"
-                }
+                },
+                "description": "номер запроса (для поиска в логе)"
+              },
+              "X-RateLimit-Limit": {
+                "schema": {
+                  "type": "integer"
+                },
+                "description": "запросов в минуту"
               },
               "X-RateLimit-Remaining": {
                 "schema": {
                   "type": "integer"
-                }
+                },
+                "description": "осталось в этой минуте"
               }
             },
             "content": {
@@ -297,7 +456,7 @@
               },
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/Layout"
                 }
               }
             }
@@ -318,6 +477,14 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "string",
+                  "example": "Bearer"
                 }
               }
             }
@@ -391,6 +558,10 @@
             }
           }
         },
+        "tags": [
+          "PDF"
+        ],
+        "description": "Пример ниже — окно 1500×1200 с поворотно-откидной створкой и дверь. Нажмите **Try it out → Execute**: PDF можно скачать прямо со страницы.",
         "deprecated": true
       }
     }
@@ -400,7 +571,8 @@
       "ApiKey": {
         "type": "apiKey",
         "in": "header",
-        "name": "X-API-Key"
+        "name": "X-API-Key",
+        "description": "Ключ вида gr_… (выдаёт владелец сервера)"
       },
       "Bearer": {
         "type": "http",
@@ -590,7 +762,100 @@
             }
           }
         }
+      },
+      "Rect": {
+        "type": "object",
+        "properties": {
+          "x": {
+            "type": "number"
+          },
+          "y": {
+            "type": "number"
+          },
+          "w": {
+            "type": "number"
+          },
+          "h": {
+            "type": "number"
+          }
+        }
+      },
+      "Layout": {
+        "type": "object",
+        "description": "Координаты в мм, начало — левый верхний угол рамы",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "elements": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "index": {
+                  "type": "integer"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "width": {
+                  "type": "number"
+                },
+                "height": {
+                  "type": "number"
+                },
+                "qty": {
+                  "type": "number"
+                },
+                "frame": {
+                  "type": "number",
+                  "description": "толщина рамы, мм"
+                },
+                "leaves": {
+                  "type": "array",
+                  "items": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/Rect"
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "fill": {
+                            "type": "string"
+                          },
+                          "opening": {
+                            "type": [
+                              "object",
+                              "null"
+                            ]
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                "mullions": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Rect"
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     }
-  }
+  },
+  "tags": [
+    {
+      "name": "PDF",
+      "description": "Чертежи окон и дверей"
+    },
+    {
+      "name": "Service",
+      "description": "Состояние сервера и описание API"
+    }
+  ]
 }

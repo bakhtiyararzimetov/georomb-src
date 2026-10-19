@@ -145,3 +145,40 @@ test('GET /openapi.json — описание API без ключа', async () =>
     assert.ok(spec.paths[V1] && spec.paths['/health']);
   });
 });
+
+test('GET /docs — страница Swagger UI со своими файлами, без чужих серверов', async () => {
+  await withApp({ apiKeys: ['k'] }, async base => {
+    for(const path of ['/docs', '/docs/']){
+      const res = await fetch(base + path);
+      assert.equal(res.status, 200, path);
+      assert.match(res.headers.get('content-type') || '', /^text\/html/);
+      const html = await res.text();
+      assert.ok(html.includes('swagger-ui-bundle.js') && html.includes('GeoRomb API'));
+      assert.ok(!/https?:\/\//.test(html), 'все файлы — с этого сервера');
+      assert.match(res.headers.get('content-security-policy') || '', /default-src 'self'/);
+    }
+    const js = await fetch(base + '/docs/swagger-ui-bundle.js');
+    assert.equal(js.status, 200);
+    assert.match(js.headers.get('content-type') || '', /javascript/);
+    assert.ok((await js.arrayBuffer()).byteLength > 100_000);
+    const init = await (await fetch(base + '/docs/init.js')).text();
+    assert.ok(init.includes('/openapi.json') && init.includes('persistAuthorization'));
+    for(const bad of ['/docs/package.json', '/docs/../package.json', '/docs/%2e%2e/package.json', '/docs/index.html']){
+      assert.equal((await fetch(base + bad)).status, 404, bad);
+    }
+  });
+});
+
+test('openapi.json: адрес сервера из publicUrl, примеры и теги', async () => {
+  await withApp({ publicUrl: 'https://api.example.com/' }, async base => {
+    const spec = await (await fetch(base + '/openapi.json')).json() as any;
+    assert.deepEqual(spec.servers, [{ url: 'https://api.example.com', description: 'API server' }]);
+    const op = spec.paths[V1].post;
+    assert.ok(op.tags.includes('PDF'));
+    assert.ok(op.requestBody.content['application/json'].example.elements.length > 0, 'пример проекта для Try it out');
+  });
+  await withApp({}, async base => {
+    const spec = await (await fetch(base + '/openapi.json')).json() as any;
+    assert.deepEqual(spec.servers, [{ url: '/', description: 'этот сервер' }]);
+  });
+});

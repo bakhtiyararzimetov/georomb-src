@@ -2,17 +2,16 @@
 // Ошибки всегда JSON: { "error": "<код>", "message": "<что не так>", "requestId": "<X-Request-Id>" }.
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { randomUUID, timingSafeEqual, createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
 import type { PdfLang, Project } from '../../app/src/types.ts';
 import { ProjectError, parseProject } from './project.ts';
 import { renderPdfInWorker } from './worker.ts';
 import { projectLayoutJson } from './layoutJson.ts';
+import { docsFile, openapiJson } from './docs.ts';
 
 export const API_PATH = '/api/v1/generate-window-pdf';
 export const LEGACY_PATH = '/api/generate-window-pdf';   // первый адрес: оставлен, чтобы бот не сломался
 export const MAX_BODY = 1024 * 1024;   // 1 МБ — проект на 50 окон занимает десятки КБ
 const LANGS: PdfLang[] = ['ru', 'uz', 'ky'];
-const OPENAPI = readFileSync(new URL('../openapi.json', import.meta.url));
 
 export interface AppDeps {
   makePdf?: (project: Project, lang: PdfLang) => Promise<Uint8Array>;
@@ -22,6 +21,7 @@ export interface AppDeps {
   ratePerMin?: number;      // запросов в минуту на ключ (без ключей — на IP); 0 — без лимита
   trustProxy?: boolean;     // IP клиента из X-Forwarded-For (только за своим прокси, иначе его подделают)
   maxClients?: number;      // клиентов в таблице лимита (память), по умолчанию MAX_CLIENTS
+  publicUrl?: string;       // внешний адрес сервера для /openapi.json и /docs (PUBLIC_URL)
   log?: (line: string) => void;   // строка на каждый запрос
   now?: () => number;
 }
@@ -170,6 +170,7 @@ export function createApp(deps: AppDeps = {}): Server {
   const now = deps.now || Date.now;
   const keyOf = deps.apiKeys && deps.apiKeys.length ? keyChecker(deps.apiKeys) : null;
   const rate = deps.ratePerMin ? rateLimiter(deps.ratePerMin, now, deps.maxClients) : null;
+  const openapi = openapiJson(deps.publicUrl);
   const server = createServer((req, res) => {
     const t0 = Date.now();
     const given = String(req.headers['x-request-id'] || '');
@@ -184,8 +185,15 @@ export function createApp(deps: AppDeps = {}): Server {
       catch{ throw new HttpError(400, 'bad_request', 'Некорректный адрес запроса'); }
       if(req.method === 'GET' && url.pathname === '/health'){ sendJson(res, 200, { ok: true }); return; }
       if(req.method === 'GET' && url.pathname === '/openapi.json'){
-        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Content-Length': OPENAPI.length });
-        res.end(OPENAPI);
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Content-Length': openapi.length });
+        res.end(openapi);
+        return;
+      }
+      if(req.method === 'GET' && (url.pathname === '/docs' || url.pathname.startsWith('/docs/'))){
+        const f = docsFile(url.pathname);
+        if(!f) throw new HttpError(404, 'not_found', 'Нет такого файла документации. Документация: GET /docs');
+        res.writeHead(200, { 'Content-Type': f.type, 'Content-Length': f.body.length, ...f.headers });
+        res.end(f.body);
         return;
       }
       if(url.pathname !== API_PATH && url.pathname !== LEGACY_PATH) throw new HttpError(404, 'not_found', `Нет такого адреса. API: POST ${API_PATH}`);
