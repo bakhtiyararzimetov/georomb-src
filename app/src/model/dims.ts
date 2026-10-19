@@ -4,7 +4,7 @@ import type { NodeRef, Rect, TreeNode, WinElement } from '../types.ts';
 import { profileFor } from '../data/profiles.ts';
 import { getCurrentProject } from '../storage.ts';
 import { showToast } from '../ui/dom.ts';
-import { computeLayout } from './layout.ts';
+import { computeLayout, parseMm } from './layout.ts';
 import { findNode } from './tree.ts';
 import { INVALID_ELEMENT_MSG, MIN_CELL } from './history.ts';
 
@@ -154,7 +154,7 @@ function growLast(node: TreeNode | null | undefined, axis: 'x' | 'y', delta: num
 export function setElementSize(e: WinElement, which: 'width' | 'height', value: number): boolean {
   if(e.type === 'sill'){ e[which] = String(value); return true; }
   computeLayout(e, profileFor(getCurrentProject()));   // sizes всех узлов актуальны
-  const old = parseFloat(String(e[which])) || (which === 'width' ? DEFAULT_W : DEFAULT_H);
+  const old = parseMm(e[which]) || (which === 'width' ? DEFAULT_W : DEFAULT_H);
   const axis = (which === 'width') ? 'x' : 'y';
   const delta = value - old;
   if(!growLast(e.root, axis, delta, true)){

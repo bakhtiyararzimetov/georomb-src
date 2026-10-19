@@ -37,7 +37,8 @@ export function saveProjects(): boolean {
   return ok;
 }
 function keepCorrupt(raw: string): void {
-  try{ if(localStorage.getItem(PROJECTS_CORRUPT_KEY) !== raw) localStorage.setItem(PROJECTS_CORRUPT_KEY, raw); }catch{ /* без копии */ }
+  // только первая поломка: в ней настоящие данные, позже поверх них уже работали с демо-проектами
+  try{ if(localStorage.getItem(PROJECTS_CORRUPT_KEY) === null) localStorage.setItem(PROJECTS_CORRUPT_KEY, raw); }catch{ /* без копии */ }
 }
 
 export function loadProjects(): void {
@@ -62,10 +63,14 @@ export function loadProjects(): void {
     if(raw) keepCorrupt(raw);
   }
   try{
+    const usedNumbers = new Set(S.projects.map(p => p.number).filter(n => n != null));
     S.projects.forEach(p => {
       if(!Array.isArray(p.elements)) p.elements = [];
       p.elements = p.elements.filter(e => e && typeof e === 'object');
-      if(p.number == null) p.number = p.id;                                   // проекты без номера: номер = id
+      if(p.number == null){                                                   // проекты без номера: номер = id, если он свободен
+        p.number = usedNumbers.has(p.id) ? Math.max(0, ...[...usedNumbers].map(Number).filter(Number.isFinite)) + 1 : p.id;
+        usedNumbers.add(p.number);
+      }
       if(typeof p.name !== 'string' || !p.name.trim()) p.name = 'Проект ' + p.number;
       if(typeof p.date !== 'string') p.date = '';
       (['phone', 'address', 'description'] as const).forEach(k => { if(typeof p[k] !== 'string') p[k] = ''; });

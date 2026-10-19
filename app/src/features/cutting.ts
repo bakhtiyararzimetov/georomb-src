@@ -1,5 +1,5 @@
 // Экран «Раскрой»: группы деталей проекта (роль × цвет), расчёт вариантов, списание со склада, PDF для цеха.
-import { DEFAULT_QTY, S } from '../state.ts';
+import { DEFAULT_QTY, S, DEFAULT_SILL_DEPTH } from '../state.ts';
 import type { CuttingSettings, Mat, Project } from '../types.ts';
 import { $, $input, escapeHtml, showToast } from '../ui/dom.ts';
 import { elementColorHex, findColor, projectMat } from '../data/colors.ts';
@@ -114,7 +114,8 @@ export function extractCuttingGroups(project: Project): CutGroup[] {
   const mat = projectMat(project);
   const groups: Record<string, CutGroup & { lenCounts: Record<number, number> }> = {};
   project.elements.forEach(e => {
-    const q = parseMm(e.qty), qty = Math.max(0, Math.round(Number.isFinite(q) ? q : DEFAULT_QTY));   // 0 шт — деталей нет, как в смете
+    // 0 шт — деталей нет, как в смете; дробное (0,4) — хотя бы одна штука, раскроить «долю окна» нельзя
+    const q = parseMm(e.qty), qn = Number.isFinite(q) ? q : DEFAULT_QTY, qty = qn > 0 ? Math.max(1, Math.round(qn)) : 0;
     if(!qty) return;
     // неизвестный код (например, цвет алюминия в проекте ПВХ из чужой копии) — как «Без цвета»: иначе две группы
     // «Без цвета» делят между собой один и тот же остаток склада
@@ -140,7 +141,7 @@ export function extractCuttingGroups(project: Project): CutGroup[] {
     };
     if(e.type === 'sill'){
       // отдельный подоконник: ширина элемента — длина, высота — глубина полки
-      const len = parseMm(e.width) || 0, depth = Math.round(parseMm(e.height) || 0);
+      const len = parseMm(e.width) || 0, depth = Math.round(parseMm(e.height) || DEFAULT_SILL_DEPTH);
       if(len > 0) push('sill', 'd' + depth, depth + ' мм', [len]);
       return;
     }

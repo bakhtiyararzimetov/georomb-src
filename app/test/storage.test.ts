@@ -66,3 +66,19 @@ test('переполнение localStorage: пользователь узнаё
   saveProjects();
   assert.notEqual(dom.toast(), '', 'никакого сообщения об ошибке сохранения');
 });
+
+test('восстановленный проект без номера не получает чужой номер', () => {
+  ls.setItem(PROJECTS_STORAGE_KEY, JSON.stringify({ projects: [{ ...good(5), number: 6 }, good(6)] }));
+  loadProjects();
+  const nums = S.projects.map(p => p.number);
+  assert.equal(new Set(nums).size, nums.length, 'номера: ' + nums.join(', '));
+});
+
+test('повреждённая копия: сохраняется первая, следующая поломка её не затирает', () => {
+  const first = '{"projects":[' + JSON.stringify(good(5)) + ',{"id":6,"name":"обрыв';
+  ls.setItem(PROJECTS_STORAGE_KEY, first);
+  loadProjects(); saveProjects();
+  ls.setItem(PROJECTS_STORAGE_KEY, '{"projects":[{"id":');
+  loadProjects();
+  assert.equal(ls.getItem('iwd.projects.corrupt.v1'), first);
+});

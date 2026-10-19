@@ -7,7 +7,7 @@ import { elementGlassName } from '../../app/src/data/glass.ts';
 import { profileFor } from '../../app/src/data/profiles.ts';
 import { computeLayout } from '../../app/src/model/layout.ts';
 import { globalChain, type DimSeg } from '../../app/src/model/dims.ts';
-import { fmtNum } from '../../app/src/model/pricing.ts';
+import { elementGeometry, fmtNum } from '../../app/src/model/pricing.ts';
 import { drawingSvg, leafDesc } from '../../app/src/render/drawingSvg.ts';
 import { pdfT } from '../../app/src/features/pdfI18n.ts';
 
@@ -116,19 +116,22 @@ export function elementPageSvg(project: Project, idx: number): string {
   const rows: [string, string][] = [
     [pdfT('size'),         Math.round(W) + ' × ' + Math.round(H) + ' ' + pdfT('mm')],
     [pdfT('qty'),          fmtNum(qty, 0, 2) + ' ' + pdfT('pcs')],
-    [pdfT('construction'), (e.type === 'sliding') ? pdfT('slidingShort') : pdfT('casementShort')],
-    [pdfT('area'),         fmtNum(W * H / 1e6 * qty, 2) + ' м²'],
-    [pdfT('glassColor'),   elementGlassName(e)]
+    [pdfT('construction'), e.type === 'sill' ? pdfT('typeSill') : (e.type === 'sliding') ? pdfT('slidingShort') : pdfT('casementShort')]
   ];
-  if(e.sill) rows.push([pdfT('sill'), fmtNum((e.sillLen || 0) * qty, 2) + ' ' + pdfT('m') + ' × ' + (e.sillWidth || 20) + ' ' + pdfT('cm')]);
+  const isSill = e.type === 'sill';                    // у отдельного подоконника нет площади окна, стекла и створок
+  if(!isSill) rows.push([pdfT('area'), fmtNum(W * H / 1e6 * qty, 2) + ' м²'], [pdfT('glassColor'), elementGlassName(e)]);
+  if(e.type === 'sill' || e.sill){
+    const g = elementGeometry(e, project.type === 'alu' ? 'alu' : 'pvc');   // как в смете: длина и ширина полки
+    rows.push([pdfT('sill'), fmtNum(g.sillLen * qty, 2) + ' ' + pdfT('m') + ' × ' + g.sillWidth + ' ' + pdfT('cm')]);
+  }
   if(e.net) rows.push([pdfT('net'), 'есть']);
   rows.forEach((r, i) => {
     const y = 1382 + i * 54;
     p.push(text(r[0], M, y, 30, { color: GREY }));
     p.push(text(r[1], 390, y, 30, { bold: true, maxW: 230 }));
   });
-  p.push(text(pdfT('sashes'), 640, 1382, 30, { color: GREY }));
-  const leaves = out.leaves.map(l => leafDesc(l.node));
+  if(!isSill) p.push(text(pdfT('sashes'), 640, 1382, 30, { color: GREY }));
+  const leaves = isSill ? [] : out.leaves.map(l => leafDesc(l.node));
   const show = leaves.length > 5 ? 4 : leaves.length;
   for(let i = 0; i < show; i++) p.push(text((i + 1) + '. ' + leaves[i], 640, 1436 + i * 54, 28, { maxW: PAGE_W - M - 640 }));
   if(leaves.length > 5) p.push(text(pdfT('andMore') + ' ' + (leaves.length - 4), 640, 1436 + 4 * 54, 28, { color: GREY }));

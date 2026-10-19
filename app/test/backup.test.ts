@@ -95,3 +95,11 @@ test('переносы строк в описании и адресе переж
   assert.equal(S.projects[0].description, '1 этаж: 3 окна\n2 этаж: дверь');
   assert.equal(S.projects[0].address, 'ул. Абая 1\r\nкв. 5');
 });
+
+test('импорт упёрся в память — в приложении остаются прежние проекты (как будет после перезапуска)', async () => {
+  S.projects = [proj([], { id: 7, number: 7, name: 'Свой' })];
+  ls.setItem(PROJECTS_STORAGE_KEY, JSON.stringify({ projects: S.projects }));
+  ls.quotaBytes = ls.getItem(PROJECTS_STORAGE_KEY)!.length + 40;
+  await importProjectsFromFile(fileInput(backup([proj([el()], { name: 'Чужой' })])));
+  assert.deepEqual(S.projects.map(p => p.name), ['Свой']);
+});

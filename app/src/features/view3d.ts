@@ -1,7 +1,7 @@
 // 3D-вид элемента (по схеме romchi: Model3DGenerator + transformProfileForFrame + Window3DRenderer).
 // По раскладке чертежа (настоящий профиль, мм) сечение профиля вытягивается вдоль сторон, углы — под 45°.
 // Стекло — прозрачные листы стеклопакета, ручки/петли — простые тела в цвет рамы.
-import { DEFAULT_W } from '../state.ts';
+import { DEFAULT_W, DEFAULT_SILL_DEPTH } from '../state.ts';
 import type { Edge, Project, Rect, TreeNode, WinElement } from '../types.ts';
 import { $, showToast } from '../ui/dom.ts';
 import { elementColorHex } from '../data/colors.ts';
@@ -248,7 +248,7 @@ function v3dBuild(e: WinElement, project: Project | undefined): Model {
   return { groups, W, H, D };
 }
 function v3dBuildSill(e: WinElement, project: Project | undefined): Model {
-  const W = parseMm(e.width) || DEFAULT_W, dep = parseMm(e.height) || 300;
+  const W = parseMm(e.width) || DEFAULT_W, dep = parseMm(e.height) || DEFAULT_SILL_DEPTH;
   const col: Col = v3dRgb(elementColorHex(e, project) || '#ffffff').concat(V3D_WOOD.has(e.color || '') ? [1, 1] : [1]);
   const base: Group = { mesh:v3dMesh(), glass:v3dMesh(), kind:'static' };
   v3dBox(base.mesh!, 22, 0, 0, W, 22, 0, dep, col);

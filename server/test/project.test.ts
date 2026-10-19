@@ -47,3 +47,8 @@ for(const [name, body, msg] of bad){
     assert.throws(() => parseProject(body), (err: unknown) => err instanceof ProjectError && msg.test(err.message));
   });
 }
+
+test('отдельный подоконник с sill:true — прикреплённый подоконник игнорируется', () => {
+  const p = parseProject({ elements: [{ type: 'sill', width: 1500, height: 200, sill: true, sillLen: 1.6 }] });
+  assert.ok(!p.elements[0].sill);
+});

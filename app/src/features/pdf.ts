@@ -218,11 +218,11 @@ async function pdfDrawElement(pg: PdfPage, project: Project, res: ProjectCost, i
   if(sizes) rows.push([pdfT('size'), Math.round(W) + ' × ' + Math.round(H) + ' ' + pdfT('mm')]);
   rows.push(
     [pdfT('qty'),          fmtNum(c.qty, 0, 2) + ' ' + pdfT('pcs')],
-    [pdfT('construction'), (e.type === 'sliding') ? pdfT('slidingShort') : pdfT('casementShort')],
-    [pdfT('area'),         fmtNum(c.g.area, 2) + ' м²'],
-    [pdfT('glassColor'),   elementGlassName(e)]
+    [pdfT('construction'), e.type === 'sill' ? pdfT('typeSill') : (e.type === 'sliding') ? pdfT('slidingShort') : pdfT('casementShort')]
   );
-  if(e.sill) rows.push([pdfT('sill'), fmtNum((e.sillLen || 0) * c.qty, 2) + ' ' + pdfT('m') + ' × ' + (e.sillWidth || 20) + ' ' + pdfT('cm')]);
+  const isSill = e.type === 'sill';                    // у отдельного подоконника нет площади окна, стекла и створок
+  if(!isSill) rows.push([pdfT('area'), fmtNum(c.g.area, 2) + ' м²'], [pdfT('glassColor'), elementGlassName(e)]);
+  if(e.type === 'sill' || e.sill) rows.push([pdfT('sill'), fmtNum((c.g.sillLen || 0) * c.qty, 2) + ' ' + pdfT('m') + ' × ' + (c.g.sillWidth || 20) + ' ' + pdfT('cm')]);
   if(c.g.nets.length) rows.push([pdfT('net'), c.g.nets.length + ' ' + pdfT('pcs')]);
   if(pdfOpts().prices) rows.push([pdfT('price'), fmtMoney(c.roundedTotal || 0)]);
   rows.forEach((r, i) => {
@@ -230,8 +230,8 @@ async function pdfDrawElement(pg: PdfPage, project: Project, res: ProjectCost, i
     pdfText(ctx, r[0], PDF_M, y, 30, { color:PDF_GREY });
     pdfText(ctx, r[1], 390, y, 30, { bold:true, maxW:230 });
   });
-  pdfText(ctx, pdfT('sashes'), 640, 1382, 30, { color:PDF_GREY });
-  const leaves = out.leaves.map(l => leafDesc(l.node));
+  if(!isSill) pdfText(ctx, pdfT('sashes'), 640, 1382, 30, { color:PDF_GREY });
+  const leaves = isSill ? [] : out.leaves.map(l => leafDesc(l.node));
   const show = leaves.length > 5 ? 4 : leaves.length;
   for(let i = 0; i < show; i++) pdfText(ctx, (i + 1) + '. ' + leaves[i], 640, 1436 + i * 54, 28, { maxW:PDF_PW - PDF_M - 640 });
   if(leaves.length > 5) pdfText(ctx, pdfT('andMore') + ' ' + (leaves.length - 4), 640, 1436 + 4 * 54, 28, { color:PDF_GREY });

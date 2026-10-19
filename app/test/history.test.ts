@@ -111,3 +111,12 @@ test('смена типа на «подоконник» снимает флаг 
   assert.equal(e.type, 'sill');
   assert.ok(!e.sill, 'у отдельного подоконника остался прикреплённый подоконник');
 });
+
+test('перетаскивание размера понимает запятую в старой ширине', async () => {
+  const { setElementSize } = await import('../src/model/dims.ts');
+  splitAsTool();
+  e.root!.sizes = [500, 500, 500.5];
+  e.width = '1500,5';
+  assert.equal(setElementSize(e, 'width', 1500.5), true);
+  assert.deepEqual(e.root!.sizes, [500, 500, 500.5], 'ширина не менялась — ячейки тоже');
+});

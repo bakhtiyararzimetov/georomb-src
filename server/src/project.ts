@@ -96,7 +96,7 @@ function parseElement(v: unknown, i: number, project: Project): WinElement {
   const glass = text(v.glass, 'glass');
   if(glass) e.glass = glass;
   if(v.net === true) e.net = true;
-  if(v.sill === true){
+  if(v.sill === true && type !== 'sill'){          // у отдельного подоконника своего подоконника нет
     e.sill = true;
     if(typeof v.sillLen === 'number') e.sillLen = v.sillLen;
     if(typeof v.sillWidth === 'number') e.sillWidth = v.sillWidth;

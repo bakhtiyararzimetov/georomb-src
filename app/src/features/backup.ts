@@ -259,7 +259,15 @@ export async function importProjectsFromFile(input: HTMLInputElement): Promise<v
       added++;
     });
     if(added === 0 && !dups){ showToast('В файле нет проектов'); return; }
+    const before = { projects: S.projects, nextId: S.nextId, nextElemId: S.nextElemId };
     S.projects = fresh.concat(S.projects);               // импортированные — сверху
+    // сначала проекты: не сохранились (память заполнена) — возвращаем всё как было, цены и склад не трогаем
+    if(!saveProjects()){
+      Object.assign(S, before);
+      rerenderList();
+      showToast('Проекты не сохранены: память телефона заполнена. Удалите старые проекты и повторите импорт.', 6000);
+      return;
+    }
     let msg = '';
     if(data.priceSettings && pricesAreUntouched()){
       S.prices = cleanPrices(data.priceSettings);
@@ -296,11 +304,6 @@ export async function importProjectsFromFile(input: HTMLInputElement): Promise<v
       S.cutting = normalizeCuttingSettings(data.cuttingSettings);
       saveCuttingSettings(S.cutting);
       msg += ' Настройки раскроя загружены.';
-    }
-    if(!saveProjects()){
-      rerenderList();
-      showToast('Проекты не сохранены: память телефона заполнена. Удалите старые проекты и повторите импорт.', 6000);
-      return;
     }
     rerenderList();
     if(await adoptBackupCode(data.licenseCode)) msg += ' Активация восстановлена.';

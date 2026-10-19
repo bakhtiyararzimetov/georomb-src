@@ -44,3 +44,15 @@ test('количество 0 — деталей нет (как в смете), �
   const p: Project = { id: 1, name: '', date: '', type: 'pvc', elements: [el(1, null, { qty: 0 })] };
   assert.deepEqual(extractCuttingGroups(p), []);
 });
+
+test('дробное количество 0,4 — хотя бы одна деталь, а не ноль (в смете 0,4 шт)', () => {
+  const p: Project = { id: 1, name: '', date: '', type: 'pvc', elements: [el(1, null, { qty: 0.4 })] };
+  const frame = extractCuttingGroups(p).find(g => g.role === 'frame')!;
+  assert.equal(frame.totalCount, 4);
+});
+
+test('отдельный подоконник без глубины — та же глубина по умолчанию, что в смете (200 мм)', () => {
+  const p: Project = { id: 1, name: '', date: '', type: 'pvc', elements: [el(1, null, { type: 'sill', width: 1500, height: '' })] };
+  const sill = extractCuttingGroups(p).find(g => g.role === 'sill')!;
+  assert.match(sill.roleLabel, /200 мм/);
+});

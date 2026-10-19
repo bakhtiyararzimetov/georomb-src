@@ -51,3 +51,11 @@ test('projectLayoutJson: рама, створки и импост в мм', () =
   assert.ok(e.leaves[0].x >= e.frame && e.leaves[1].x > e.leaves[0].x);
   assert.equal(JSON.parse(JSON.stringify(j)).elements[1].leaves.length >= 1, true);
 });
+
+test('elementPageSvg: отдельный подоконник подписан как подоконник', () => {
+  const svg = elementPageSvg(parseProject({ elements: [{ type: 'sill', width: 1500, height: 200 }] }), 0);
+  assert.ok(svg.includes('>Подоконник<'), 'конструкция');
+  assert.ok(!svg.includes('Створная'));
+  assert.ok(!svg.includes('Створки') && !svg.includes('глухое стекло') && !svg.includes('Цвет окна'), 'у подоконника нет створок и стекла');
+  assert.ok(svg.includes('1,50 м × 20 см'));
+});

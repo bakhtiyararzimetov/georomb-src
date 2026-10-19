@@ -267,7 +267,7 @@ export function openElementSummary(): void {
   const col = findColor(project, e.color);
   const rows: [string, unknown][] = [
     ['Номер элемента', S.currentElementIndex + 1],
-    ['Тип элемента', e.type === 'sliding' ? 'Раздвижение' : 'Створный'],
+    ['Тип элемента', e.type === 'sill' ? 'Подоконник' : e.type === 'sliding' ? 'Раздвижение' : 'Створный'],
     ['Цвет рамы', col ? (col.ral && !String(col.name).includes(col.ral) ? col.name + ' (' + col.ral + ')' : col.name) : '—'],
     ['Цвет окна', elementGlassName(e)],
     ['Размер', e.width + ' × ' + e.height + ' мм'],
@@ -276,7 +276,7 @@ export function openElementSummary(): void {
     ['Площадь стекла', fmtNum(c.g.glassArea, 1) + ' м²'],
     ['Длина профилей', fmtNum(c.g.profileLen, 1) + ' м']
   ];
-  if(e.sill) rows.push(['Подоконник', fmtNum((e.sillLen || 0) * c.qty, 2) + ' м, полка ' + (e.sillWidth || 20) + ' см (' + fmtMoney(c.sillCost * c.qty) + ')']);
+  if(e.type === 'sill' || e.sill) rows.push(['Подоконник', fmtNum((c.g.sillLen || 0) * c.qty, 2) + ' м, полка ' + (c.g.sillWidth || 20) + ' см (' + fmtMoney(c.sillCost * c.qty) + ')']);
   if(c.g.nets.length) rows.push(['Москитная сетка', c.g.nets.length + ' шт: ' + c.g.nets.map(n => n.w + '×' + n.h).join(', ') + ' мм']);
   if(c.g.reinfLen > 0) rows.push(['Армирование', fmtNum(c.g.reinfLen, 1) + ' м']);
   rows.push(['Оценка цены', fmtSummaryMoney(c.total)]);

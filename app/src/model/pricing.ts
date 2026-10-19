@@ -1,8 +1,8 @@
 // Расчёт стоимости (порт PriceSettingActivity + PriceEstimateActivity старого проекта).
-import { DEFAULT_QTY, S } from '../state.ts';
+import { DEFAULT_QTY, DEFAULT_SILL_DEPTH, S } from '../state.ts';
 import { notifyDataChanged } from '../storage.ts';
 import type { Mat, PriceSettings, Project, Rect, SubLayout, TreeNode, WasteMode, WinElement } from '../types.ts';
-import { projectMat } from '../data/colors.ts';
+import { findColor, projectMat } from '../data/colors.ts';
 import { NET_OVERLAP, REINF_MULLION_OFFSET, profileFor, sashInset, sashOverhang, sashProfile } from '../data/profiles.ts';
 import { computeLayout, insetRect, layoutNode, parseMm } from './layout.ts';
 import { cutOptimize } from './cutOptimizer.ts';
@@ -148,7 +148,7 @@ function nearestSillWidth(depthMm: number): number {
 function sillGeometry(e: WinElement): Geometry {
   // отдельный подоконник: ширина элемента — длина, высота — глубина полки (как в раскрое и 3D)
   const W = parseMm(e.width), H = parseMm(e.height);
-  const len = W > 0 ? W : 0, depth = H > 0 ? H : 200;
+  const len = W > 0 ? W : 0, depth = H > 0 ? H : DEFAULT_SILL_DEPTH;
   return { W: len, H: depth, area: 0, frameLen: 0, mullionLen: 0, sashWinLen: 0, sashDoorLen: 0,
            glassArea: 0, panelArea: 0, sashCount: 0, acc: {}, sillLen: len / 1000, sillWidth: nearestSillWidth(depth),
            profileLen: 0, len: {}, pieces: { frame:[], mullion:[], wSash:[], dSash:[], slidFrame:[], slidSash:[], bead:[], panel:[], reinf:[], net:[] },
@@ -325,7 +325,9 @@ export function profileCutWaste(project: Project, items: ElementCost[], mode: 'f
     roles.forEach(role => {
       const lens = c.g.pieces[role];
       if(!lens.length || !qty) return;
-      const key = role + '|' + (role === 'reinf' ? '' : (e.color || ''));
+      // группа по цвету — как в раскрое: неизвестный код считается «без цвета»
+      const col = findColor(project, e.color || '');
+      const key = role + '|' + (role === 'reinf' ? '' : (col ? col.code : ''));
       if(!groups.has(key)) groups.set(key, { role, lens:[] });
       const gr = groups.get(key)!;
       for(let q = 0; q < qty; q++) lens.forEach(len => { const mm = Math.round(len); if(mm > 0) gr.lens.push(mm); });

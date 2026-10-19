@@ -26,3 +26,5 @@ export const S = {
 };
 
 export const DEFAULT_W = 1500, DEFAULT_H = 1200, DEFAULT_QTY = 1;
+/** Глубина полки отдельного подоконника, если её нет в данных (смета, раскрой, 3D), мм. */
+export const DEFAULT_SILL_DEPTH = 200;

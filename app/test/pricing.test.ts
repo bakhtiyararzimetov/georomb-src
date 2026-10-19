@@ -90,3 +90,13 @@ test('количество 0 не считается как 1 шт', () => {
   S.prices = prices();
   assert.equal(calcElement(el({ qty: 0 }), project([])).qty, 0);
 });
+
+test('отходы «по полной длине»: неизвестный код цвета — та же группа, что «без цвета» (как в раскрое)', () => {
+  S.prices = prices();
+  S.prices.waste = { mode: 'full', percent: 0 };
+  const small = (id: number, color: string | null) => el({ id, color, width: 300, height: 300 });
+  const a = calcProject(project([small(1, null), small(2, null), small(3, null), small(4, null)]));
+  const b = calcProject(project([small(1, null), small(2, null), small(3, 'нет-такого'), small(4, 'нет-такого')]));
+  assert.equal(a.waste!.bars, 1, 'контроль: рамы четырёх окон 300×300 — один хлыст');
+  assert.equal(b.waste!.bars, a.waste!.bars);
+});
