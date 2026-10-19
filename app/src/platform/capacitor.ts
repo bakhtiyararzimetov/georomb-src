@@ -16,7 +16,7 @@ interface CapPlugins {
   };
   // свой плагин (android/.../FolderAccessPlugin.java): папка, выбранная пользователем через системный диалог
   FolderAccess?: import('../features/autoBackup.ts').FolderApi;
-  Share?: { share(o: { title?: string; text?: string; url?: string; dialogTitle?: string }): Promise<unknown> };
+  Share?: { share(o: { title?: string; text?: string; url?: string; files?: string[]; dialogTitle?: string }): Promise<unknown> };
   App?: {
     minimizeApp?(): Promise<void>;
     exitApp?(): Promise<void>;

@@ -7,7 +7,7 @@ import { $, $input, escapeHtml, showToast } from '../ui/dom.ts';
 import { GLASS_TYPES } from '../data/glass.ts';
 import { SLIDING_TEMPLATES } from '../data/profiles.ts';
 import { PRICE_DEFAULTS, SILL_WIDTHS, calcElement, clonePriceDefaults, isWasteMode, persistPriceSettings } from '../model/pricing.ts';
-import { deliverFile } from '../platform/share.ts';
+import { deliverFile, deliverFiles, safeFileName } from '../platform/share.ts';
 import { onDataChanged, saveProjects, withoutHistory } from '../storage.ts';
 import { nativePlugins } from '../platform/capacitor.ts';
 import { ID_ALPHABET } from '../../../shared/license.ts';
@@ -168,9 +168,35 @@ export async function restoreFromCopy(): Promise<void> {
   }
 }
 
+/** Имена файлов экспорта: название проекта; одинаковые — «Иванов (2).json». */
+export function exportFileNames(projects: { name: string }[]): string[] {
+  const used = new Set<string>();
+  return projects.map(p => {
+    const base = safeFileName(String(p.name || ''), 'Проект');
+    let name = base + '.json';
+    for(let k = 2; used.has(name.toLowerCase()); k++) name = base + ' (' + k + ').json';
+    used.add(name.toLowerCase());
+    return name;
+  });
+}
+
 async function exportProjects(ids?: number[]): Promise<void> {
   const n = Array.isArray(ids) ? ids.length : S.projects.length;
   if(n === 0){ showToast('Нет проектов для экспорта'); return; }
+  // выбранные проекты — каждый своим файлом с названием проекта: при импорте сразу видно, что где
+  if(Array.isArray(ids)){
+    try{
+      const list = S.projects.filter(p => ids.includes(p.id));
+      const names = exportFileNames(list);
+      const files = list.map((p, i) => ({ name: names[i], blob: new Blob([JSON.stringify(buildBackup([p.id]), null, 1)], { type:'application/json' }) }));
+      const how = await deliverFiles(files, list.length === 1 ? list[0].name : 'Проекты: ' + list.length);
+      if(how === 'download') showToast(files.length === 1 ? 'Файл сохранён: ' + files[0].name : 'Сохранено файлов: ' + files.length);
+    }catch(err){
+      console.error(err);
+      showToast('Не удалось сохранить файл');
+    }
+    return;
+  }
   try{
     const blob = new Blob([JSON.stringify(buildBackup(ids), null, 1)], { type:'application/json' });
     const d = new Date(), z = (x: number) => String(x).padStart(2, '0');
@@ -342,20 +368,51 @@ function pricesAreUntouched(): boolean {
 
 export function importProjects(): void { $input('importFile').click(); }
 export async function importProjectsFromFile(input: HTMLInputElement): Promise<void> {
-  const file = input.files && input.files[0];
+  const files = input.files ? Array.from(input.files as ArrayLike<File>) : [];
   input.value = '';                                     // чтобы тот же файл можно было выбрать снова
-  if(!file) return;
-  if(file.size > 30 * 1024 * 1024){ showToast('Файл слишком большой'); return; }
-  let text: string;
-  try{ text = await file.text(); }catch(err){ console.error(err); showToast('Не удалось прочитать файл'); return; }
-  await importBackupText(text);
+  if(!files.length) return;
+  if(files.length === 1){
+    const r = await readAndImport(files[0]);
+    showToast(r.error || importMessage(r));
+    return;
+  }
+  // несколько файлов: по очереди, одно общее сообщение
+  const total: ImportResult = { added: 0, skipped: 0, dups: 0, notes: [] };
+  const failed: string[] = [];
+  for(const f of files){
+    const r = await readAndImport(f);
+    if(r.error){ failed.push((f.name || 'файл') + ' — ' + r.error.replace(/\.$/, '')); continue; }
+    total.added += r.added; total.skipped += r.skipped; total.dups += r.dups;
+    r.notes.forEach(n => { if(!total.notes.includes(n)) total.notes.push(n); });
+  }
+  const ok = files.length - failed.length;
+  showToast((ok ? importMessage(total) + ' Файлов: ' + ok + '.' : 'Ни один файл не импортирован.')
+    + (failed.length ? ' Не прочитаны: ' + failed.join('; ') + '.' : ''), 7000);
 }
-/** Импорт содержимого файла копии (выбранного вручную или найденного в папке копий). */
+async function readAndImport(file: File): Promise<ImportResult> {
+  if(file.size > 30 * 1024 * 1024) return { added: 0, skipped: 0, dups: 0, notes: [], error: 'Файл слишком большой' };
+  let text: string;
+  try{ text = await file.text(); }catch(err){ console.error(err); return { added: 0, skipped: 0, dups: 0, notes: [], error: 'Не удалось прочитать файл' }; }
+  return importBackupData(text);
+}
+
+interface ImportResult { added: number; skipped: number; dups: number; notes: string[]; error?: string; }
+function importMessage(r: ImportResult): string {
+  return 'Импортировано проектов: ' + r.added + (r.skipped ? ' (пропущено элементов: ' + r.skipped + ')' : '')
+    + (r.dups ? ', уже были: ' + r.dups : '') + '.' + r.notes.map(n => ' ' + n).join('');
+}
+/** Импорт содержимого файла копии с сообщением (копия из папки, один файл). */
 async function importBackupText(text: string): Promise<void> {
+  const r = await importBackupData(text);
+  showToast(r.error || importMessage(r), r.error && r.error.length > 60 ? 6000 : undefined);
+}
+/** Разбор и импорт файла копии без сообщений: что добавлено или почему нет. */
+async function importBackupData(text: string): Promise<ImportResult> {
+  const fail = (error: string): ImportResult => ({ added: 0, skipped: 0, dups: 0, notes: [], error });
   try{
-    if(text.length > 30 * 1024 * 1024){ showToast('Файл слишком большой'); return; }
+    if(text.length > 30 * 1024 * 1024) return fail('Файл слишком большой');
     const data = JSON.parse(text) as Raw | null;
-    if(!data || data.format !== BACKUP_FORMAT || !Array.isArray(data.projects)){ showToast('Это не файл резервной копии проектов'); return; }
+    if(!data || data.format !== BACKUP_FORMAT || !Array.isArray(data.projects)) return fail('Это не файл резервной копии проектов');
 
     const before = { projects: S.projects, nextId: S.nextId, nextElemId: S.nextElemId, nextNodeId: S.nextNodeId };   // для отката
     const used = new Set(S.projects.map(p => Number(p.number)));
@@ -392,20 +449,19 @@ async function importBackupText(text: string): Promise<void> {
       fresh.push(project);
       added++;
     });
-    if(added === 0 && !dups){ showToast('В файле нет проектов'); return; }
+    if(added === 0 && !dups) return fail('В файле нет проектов');
     S.projects = fresh.concat(S.projects);               // импортированные — сверху
     // сначала проекты: не сохранились (память заполнена) — возвращаем всё как было, цены и склад не трогаем
     if(!saveProjects(true)){
       Object.assign(S, before);
       rerenderList();
-      showToast('Проекты не сохранены: память телефона заполнена. Удалите старые проекты и повторите импорт.', 6000);
-      return;
+      return fail('Проекты не сохранены: память телефона заполнена. Удалите старые проекты и повторите импорт.');
     }
-    let msg = '';
+    const notes: string[] = [];
     if(data.priceSettings && pricesAreUntouched()){
       S.prices = cleanPrices(data.priceSettings);
       persistPriceSettings();
-      msg = ' Цены загружены.';
+      notes.push('Цены загружены.');
     }
     // отключённые цвета — только если на этом устройстве ничего ещё не отключали
     if(Array.isArray(data.catalogOff) && S.catalogOff.size === 0){
@@ -429,22 +485,21 @@ async function importBackupText(text: string): Promise<void> {
         S.warehouseRemnants = cleanRemnants;
         wh.matcher = new WarehouseMatcher(kerf);
         saveWarehouse();
-        msg += ' Склад загружен.';
+        notes.push('Склад загружен.');
       }
     }
     // настройки раскроя — только если ещё не менялись
     if(data.cuttingSettings && typeof data.cuttingSettings === 'object' && cuttingSettingsAreUntouched()){
       S.cutting = normalizeCuttingSettings(data.cuttingSettings);
       saveCuttingSettings(S.cutting);
-      msg += ' Настройки раскроя загружены.';
+      notes.push('Настройки раскроя загружены.');
     }
     rerenderList();
-    if(await adoptBackupCode(data.licenseCode)) msg += ' Активация восстановлена.';
-    if(overLimit) msg += ' Пропущено проектов сверх ' + IMPORT_MAX_PROJECTS + ': ' + overLimit + '.';
-    showToast('Импортировано проектов: ' + added + (skipped ? ' (пропущено элементов: ' + skipped + ')' : '')
-      + (dups ? ', уже были: ' + dups : '') + '.' + msg);
+    if(await adoptBackupCode(data.licenseCode)) notes.push('Активация восстановлена.');
+    if(overLimit) notes.push('Пропущено проектов сверх ' + IMPORT_MAX_PROJECTS + ': ' + overLimit + '.');
+    return { added, skipped, dups, notes };
   }catch(err){
     console.error(err);
-    showToast('Не удалось прочитать файл');
+    return fail('Не удалось прочитать файл');
   }
 }

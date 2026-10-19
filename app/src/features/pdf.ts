@@ -10,7 +10,7 @@ import { globalChain, type DimSeg } from '../model/dims.ts';
 import { calcProject, fmtMoney, fmtNum, type ProjectCost } from '../model/pricing.ts';
 import { S } from '../state.ts';
 import { drawingSvg, leafDesc } from '../render/drawingSvg.ts';
-import { deliverFile } from '../platform/share.ts';
+import { deliverFile, safeFileName } from '../platform/share.ts';
 import { getCurrentProject } from '../storage.ts';
 import { openPdfOptions, pdfLineName, pdfOpts, pdfT } from './pdfI18n.ts';
 
@@ -331,7 +331,7 @@ export function pdfFromJpegs(jpegs: JpegPage[]): Uint8Array<ArrayBuffer> {
   parts.forEach(b => { all.set(b, p); p += b.length; });
   return all;
 }
-export const safeFileName = (s: string, def: string) => s.replace(/[\\/:*?"<>|]+/g, '_').trim() || def;
+export { safeFileName };
 
 // кнопка «Поделиться»: сначала язык и состав PDF, потом сборка
 export function shareProjectPdf(): void {
