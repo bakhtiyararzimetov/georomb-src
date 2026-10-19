@@ -1,0 +1,26 @@
+# Render Blueprint: Dashboard → New → Blueprint → репозиторий georomb-src. Собирается Dockerfile.
+# API_KEYS Render спросит при создании (sync: false — значение не хранится в git).
+services:
+  - type: web
+    name: georomb-api
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: API_KEYS
+        sync: false
+      - key: TRUST_PROXY
+        value: "1"
+      - key: RATE_LIMIT
+        value: "60"
+      # бесплатный сервер слабый (0,1 CPU, 512 МБ): по одному PDF за раз
+      - key: PDF_CONCURRENCY
+        value: "1"
+      - key: PDF_TIMEOUT
+        value: "180"
+      # самопинг раз в 10 минут, чтобы сервер не засыпал
+      - key: KEEP_ALIVE
+        value: "1"
