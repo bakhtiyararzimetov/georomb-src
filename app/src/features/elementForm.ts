@@ -5,7 +5,8 @@ import { $, $input, $select, isOpen, parseSize, showToast } from '../ui/dom.ts';
 import { fillColorSelect, fillGlassSelect, openConfirm, openSummaryRows } from '../ui/dialogs.ts';
 import { findColor } from '../data/colors.ts';
 import { GLASS_NEW_DEFAULT, elementGlassName, findGlass } from '../data/glass.ts';
-import { renumberTree } from '../model/tree.ts';
+import { ensureRoot, renumberTree } from '../model/tree.ts';
+import { parseMm } from '../model/layout.ts';
 import { INVALID_ELEMENT_MSG, beginChange, finishChange, isElementValid } from '../model/history.ts';
 import { calcElement, fmtMoney, fmtNum, fmtSummaryMoney } from '../model/pricing.ts';
 import { getCurrentProject, saveProjects } from '../storage.ts';
@@ -90,7 +91,7 @@ export function addElementItem(): void {
     if(e){
       if(!applyFormSize(e, type, width, height)) return;
       e.qty = qty; e.color = colorCode; e.glass = glassCode;
-      e.sill = sill.needSill; e.sillLen = sill.sillLen; e.sillWidth = sill.sillWidth;
+      setSill(e, sill);
       setNet(e, net);
     }
     S.editingElementId = null;
@@ -166,6 +167,11 @@ export function closeEditElement(): void {
 }
 // Размер из формы — тот же шаг истории, что и правка на схеме: недопустимый откатывается с тостом
 // (форма остаётся открытой), допустимый попадает в «Отменить» / «Вернуть». false — не принято.
+// у отдельного подоконника своего «прикреплённого» подоконника нет (иначе он попадает в смету, PDF и сводку)
+function setSill(e: WinElement, sill: SillInput): void {
+  const on = sill.needSill && e.type !== 'sill';
+  e.sill = on; e.sillLen = on ? sill.sillLen : 0; e.sillWidth = on ? sill.sillWidth : 0;
+}
 function applyFormSize(e: WinElement, type: ElementType, width: number, height: number): boolean {
   if(e.type !== type){                                // смена типа — дерево и история заново
     const prev = { type: e.type, root: e.root, width: e.width, height: e.height, history: e.history, redo: e.redo };
@@ -174,8 +180,11 @@ function applyFormSize(e: WinElement, type: ElementType, width: number, height: 
     S.selectedNid = null;
     return true;
   }
+  ensureRoot(e);                                       // проверка всё равно создаст дерево — до снимка, иначе он «изменится»
   const tok = beginChange(e);
-  e.width = width; e.height = height;
+  // то же число — оставляем как было (после перетаскивания размера там строка «1500»): иначе пустой шаг «Отменить»
+  if(parseMm(e.width) !== width) e.width = width;
+  if(parseMm(e.height) !== height) e.height = height;
   return finishChange(e, tok);
 }
 
@@ -194,7 +203,7 @@ export function saveEditElement(): void {
   const colorSel = $select('editElemColor');
   if(!applyFormSize(e, type, width, height)) return;
   e.qty = qty;
-  e.sill = sill.needSill; e.sillLen = sill.sillLen; e.sillWidth = sill.sillWidth;
+  setSill(e, sill);
   setNet(e, checked('editElemNet') === 'yes');
   if(colorSel && !colorSel.disabled) e.color = colorSel.value;
   e.glass = findGlass($select('editElemGlass').value).code;

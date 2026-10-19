@@ -80,5 +80,5 @@ export function installDom(values: Record<string, string> = {}, checkedRadios: R
   };
   Object.defineProperty(globalThis, 'document', { value: doc, configurable: true, writable: true });
   if(!('window' in globalThis)) Object.defineProperty(globalThis, 'window', { value: globalThis, configurable: true, writable: true });
-  return { el: getEl, toast: () => getEl('toast').textContent };
+  return { el: getEl, toast: () => getEl('toast').textContent, setRadio: (name: string, v: string) => { checkedRadios[name] = v; } };
 }

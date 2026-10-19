@@ -97,3 +97,12 @@ test('отход и деловой обрезок: остаток ≥ мин. о
   assert.equal(w.plans[0].usable, false);
   assert.equal(w.wasteMm, 95);
 });
+
+test('дробный пропил не замедляет точный подбор (300 деталей, пропил 2,25 мм)', () => {
+  const rnd = (i: number) => 300 + ((i * 7919) % 2200);
+  const pieces = Array.from({ length: 300 }, (_, i) => rnd(i));
+  const t0 = Date.now(); cutOptimize(pieces, 6000, { ...C, k: 3 }, [], 0); const intMs = Date.now() - t0;
+  const t1 = Date.now(); const r = cutOptimize(pieces, 6000, { ...C, k: 2.25 }, [], 0); const fracMs = Date.now() - t1;
+  assert.ok(fracMs < Math.max(1500, intMs * 3), `дробный пропил: ${fracMs} мс, целый: ${intMs} мс`);
+  for(const v of r.variants) for(const p of v.plans) assert.ok(p.cuts.reduce((a, x) => a + x, 0) + 2.25 * (p.cuts.length - 1) <= 6000 + 1e-9, 'хлыст переполнен');
+});

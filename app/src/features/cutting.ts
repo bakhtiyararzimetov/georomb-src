@@ -114,7 +114,7 @@ export function extractCuttingGroups(project: Project): CutGroup[] {
   const mat = projectMat(project);
   const groups: Record<string, CutGroup & { lenCounts: Record<number, number> }> = {};
   project.elements.forEach(e => {
-    const qty = Math.max(0, Math.round(parseMm(e.qty) || DEFAULT_QTY));
+    const q = parseMm(e.qty), qty = Math.max(0, Math.round(Number.isFinite(q) ? q : DEFAULT_QTY));   // 0 шт — деталей нет, как в смете
     if(!qty) return;
     // неизвестный код (например, цвет алюминия в проекте ПВХ из чужой копии) — как «Без цвета»: иначе две группы
     // «Без цвета» делят между собой один и тот же остаток склада

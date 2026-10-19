@@ -103,8 +103,8 @@ async function main(): Promise<void> {
     case 'extend': {
       const id = needId(pos[0]);
       const r = findRow(rows, id);
+      if(opt.days === undefined || !/^\d+$/.test(opt.days.trim())) throw new Error('Укажите --days N — целое число дней (0 — навсегда)');
       const n = Number(opt.days);
-      if(!(n >= 0) || !isFinite(n)) throw new Error('Укажите --days N');
       let exp = '0';
       if(n > 0){
         const base = r.exp === '0' || dateNum() > Number(r.exp) ? new Date() : toDate(r.exp);

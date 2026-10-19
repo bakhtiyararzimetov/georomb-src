@@ -89,3 +89,9 @@ test('XSS: имя/адрес/цвет из чужого файла не несу
   assert.ok(!/[<>"]/.test(p.name + p.date + p.elements[0].color));
   assert.ok(!/[<>]/.test(S.warehouseRemnants[0].color + S.warehouseRemnants[0].role));
 });
+
+test('переносы строк в описании и адресе переживают экспорт → импорт', async () => {
+  await importProjectsFromFile(fileInput(backup([proj([], { description: '1 этаж: 3 окна\n2 этаж: дверь', address: 'ул. Абая 1\r\nкв. 5' })])));
+  assert.equal(S.projects[0].description, '1 этаж: 3 окна\n2 этаж: дверь');
+  assert.equal(S.projects[0].address, 'ул. Абая 1\r\nкв. 5');
+});

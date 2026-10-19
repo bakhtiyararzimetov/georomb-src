@@ -125,9 +125,9 @@ const IMPORT_MAX_PROJECTS = 5000, IMPORT_MAX_ELEMENTS = 500, IMPORT_MAX_NODES = 
 // импостов в одной цепочке: витрина может быть из многих полей (инструмент MV1, flattenSameDir) — лишь бы узлов ≤ IMPORT_MAX_NODES
 const IMPORT_MAX_CHILDREN = 100;
 const safeText = (v: unknown, max: number, def?: string): string => {
-  // убираем только то, из чего собирается разметка; & и кавычки — обычные символы названий («ООО "Окна & Двери"»),
+  // убираем только то, из чего собирается разметка, и управляющие символы (кроме переносов строк и табуляции); & и кавычки — обычные символы названий («ООО "Окна & Двери"»),
   // при выводе их экранирует escapeHtml
-  const t = (typeof v === 'string' || typeof v === 'number') ? String(v).replace(/[<>`\u0000-\u001f\u007f]/g, '').trim().slice(0, max) : '';
+  const t = (typeof v === 'string' || typeof v === 'number') ? String(v).replace(/[<>`\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '').trim().slice(0, max) : '';
   return t || (def || '');
 };
 const safeNum = (v: unknown, min: number, max: number): number | null => { const n = Number(v); return (isFinite(n) && n >= min && n <= max) ? n : null; };

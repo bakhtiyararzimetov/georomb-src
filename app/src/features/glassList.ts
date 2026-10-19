@@ -50,7 +50,7 @@ export function collectPanes(project: Project): PaneList {
   const glass: GlassGroup[] = [], nets: SizeRow[] = [];
   project.elements.forEach(e => {
     if(e.type === 'sill') return;
-    const qty = Math.max(0, Math.round(parseMm(e.qty) || DEFAULT_QTY));
+    const q = parseMm(e.qty), qty = Math.max(0, Math.round(Number.isFinite(q) ? q : DEFAULT_QTY));
     if(!qty) return;
     const g = elementGeometry(e, mat);
     const gt = findGlass(e.glass);

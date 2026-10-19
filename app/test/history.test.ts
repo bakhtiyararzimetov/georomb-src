@@ -88,3 +88,26 @@ test('правка ширины в форме сохраняет заданны�
   isElementValid(e, p);
   assert.equal(Math.round(e.root!.sizes![0]), 600, 'первая ячейка стала ' + e.root!.sizes![0]);
 });
+
+test('форма без изменений не добавляет пустой шаг «Отменить» (ширина строкой после перетаскивания размера)', () => {
+  e.width = '1500'; e.height = '1200';             // так её сохраняет setElementSize
+  S.editingElementId = e.id;
+  dom.el('editElemWidth').value = '1500';
+  saveEditElement();
+  assert.equal(e.history.length, 0);
+});
+
+test('смена типа на «подоконник» снимает флаг «с подоконником»', () => {
+  e.sill = true; e.sillLen = 1.6; e.sillWidth = 20;
+  S.editingElementId = e.id;
+  dom.el('editElemWidth').value = '1500';
+  dom.setRadio('editElemType', 'sill');
+  dom.setRadio('editElemSill', 'yes');              // переключатель мог остаться от окна
+  dom.el('editElemHeight').value = '200';
+  saveEditElement();
+  dom.setRadio('editElemType', 'casement');
+  dom.setRadio('editElemSill', 'no');
+  dom.el('editElemHeight').value = '1200';
+  assert.equal(e.type, 'sill');
+  assert.ok(!e.sill, 'у отдельного подоконника остался прикреплённый подоконник');
+});

@@ -40,14 +40,8 @@ function cutRng(seed: number): () => number {
   };
 }
 // точный подбор: набор с максимальной Σ(деталь + пропил) ≤ cap (рюкзак 0/1, количества — двоичным разбиением).
-// Рюкзак идёт по целым индексам, поэтому дробный пропил (2,5 мм) и cap считаем в десятых/сотых долях мм.
-function dpScale(k: number, cap: number): number {
-  for(const s of [1, 10, 100]){
-    const ok = (x: number) => Math.abs(x * s - Math.round(x * s)) < 1e-6;
-    if(ok(k) && ok(cap)) return s;
-  }
-  return 100;
-}
+// Рюкзак идёт по целым мм: деталь с дробным пропилом (2,5 мм) округляется вверх — хлыст не переполнится,
+// а недобор — доли мм на рез. Масштаб ×10/×100 вместо этого замедлял подбор в 10–100 раз.
 function cutBestFill(m: Counts, cap: number, k: number, okLeft: ((left: number) => boolean) | null): number[] | null {
   if(cap <= 0) return null;
   const items: [number, number][] = [];
@@ -56,8 +50,8 @@ function cutBestFill(m: Counts, cap: number, k: number, okLeft: ((left: number) 
     while(c > 0){ const t = Math.min(p, c); items.push([len, t]); c -= t; p *= 2; }
   });
   if(!items.length) return null;
-  const sc = dpScale(k, cap), capI = Math.floor(cap * sc + 1e-6);
-  const wOf = (i: number) => Math.round((items[i][0] + k) * sc) * items[i][1];
+  const capI = Math.floor(cap + 1e-9);
+  const wOf = (i: number) => Math.ceil(items[i][0] + k - 1e-9) * items[i][1];
   const reach = new Uint8Array(capI + 1), from = new Int32Array(capI + 1);
   reach[0] = 1;
   for(let i = 0; i < items.length; i++){
@@ -65,13 +59,14 @@ function cutBestFill(m: Counts, cap: number, k: number, okLeft: ((left: number) 
     for(let c = capI; c >= w; c--) if(!reach[c] && reach[c - w]){ reach[c] = 1; from[c] = i; }
   }
   for(let c = capI; c > 0; c--){
-    if(!reach[c] || (okLeft && !okLeft(cap - c / sc))) continue;
+    if(!reach[c]) continue;
     const out: number[] = [];
     for(let x = c; x > 0; ){
       const i = from[x], [len, t] = items[i];
       for(let j = 0; j < t; j++) out.push(len);
       x -= wOf(i);
     }
+    if(okLeft && !okLeft(cap - out.reduce((a, l) => a + l + k, 0))) continue;   // настоящий остаток, не округлённый
     return out;
   }
   return null;

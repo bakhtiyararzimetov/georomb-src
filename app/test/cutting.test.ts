@@ -39,3 +39,8 @@ test('один остаток склада не предлагается дву�
   }).filter(Boolean).length;
   assert.ok(used <= 1, 'единственный остаток 1600 мм запланирован в ' + used + ' группах');
 });
+
+test('количество 0 — деталей нет (как в смете), а не 1 шт', () => {
+  const p: Project = { id: 1, name: '', date: '', type: 'pvc', elements: [el(1, null, { qty: 0 })] };
+  assert.deepEqual(extractCuttingGroups(p), []);
+});

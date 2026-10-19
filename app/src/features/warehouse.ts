@@ -166,7 +166,7 @@ export function renderWarehouseScreen(): void {
                 <div class="wh-sub">${escapeHtml(r.color || '—')}</div>
               </div>
               <div>
-                <div class="wh-len">${r.lengthMm} мм</div>
+                <div class="wh-len">${escapeHtml(r.lengthMm)} мм</div>
                 <div class="wh-qty">${escapeHtml(r.qty)} шт</div>
               </div>
               <button class="wh-del" aria-label="Удалить" onclick="event.stopPropagation(); deleteWhRemnant(${r.id})">

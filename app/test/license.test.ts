@@ -66,11 +66,11 @@ test('dateNum — по местному времени устройства', ()
 });
 
 // CLI лицензий: команда add-list не требует закрытого ключа, база — во временной папке
-function cliAddList(days: string): string {
+function cliAddList(days: string, cmd = 'add-list'): string {
   const dir = mkdtempSync(join(dirname(fileURLToPath(import.meta.url)), '.tmp-lic-'))   // внутри репозитория, удаляется сразу;
   try{
     const db = join(dir, 'issued.json');
-    const r = spawnSync(process.execPath, [new URL('../../backend/src/cli.ts', import.meta.url).pathname, 'add-list', 'ABCDE-23456', '--days', days],
+    const r = spawnSync(process.execPath, [new URL('../../backend/src/cli.ts', import.meta.url).pathname, cmd, 'ABCDE-23456', '--days', days],
       { env: { ...process.env, GEOROMB_DB: db, GEOROMB_KEY: join(dir, 'нет-ключа.json') }, encoding: 'utf8' });
     if(r.status !== 0) return 'ERROR';
     return (JSON.parse(readFileSync(db, 'utf8')) as { exp: string }[])[0].exp;
@@ -88,4 +88,20 @@ test('CLI: опечатка в --days не выдаёт бессрочную л�
     const exp = cliAddList(d);
     assert.notEqual(exp, '0', '--days ' + d + ' дало бессрочную лицензию');
   }
+});
+
+test('CLI: extend с пустым или дробным --days — ошибка, а не бессрочная лицензия', () => {
+  const dir = mkdtempSync(join(dirname(fileURLToPath(import.meta.url)), '.tmp-lic-'));
+  try{
+    const db = join(dir, 'issued.json');
+    const env = { ...process.env, GEOROMB_DB: db, GEOROMB_KEY: join(dir, 'нет-ключа.json') };
+    const cli = new URL('../../backend/src/cli.ts', import.meta.url).pathname;
+    assert.equal(spawnSync(process.execPath, [cli, 'add-list', 'ABCDE-23456', '--days', '30'], { env, encoding: 'utf8' }).status, 0);
+    const before = readFileSync(db, 'utf8');
+    for(const args of [['--days'], ['--days', '1.5'], ['--days', '3O']]){
+      const r = spawnSync(process.execPath, [cli, 'extend', 'ABCDE-23456', ...args], { env, encoding: 'utf8' });
+      assert.notEqual(r.status, 0, 'extend ' + args.join(' ') + ' прошёл');
+      assert.equal(readFileSync(db, 'utf8'), before, 'база не изменилась');
+    }
+  }finally{ rmSync(dir, { recursive: true, force: true }); }
 });
