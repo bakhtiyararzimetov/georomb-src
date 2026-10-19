@@ -4,6 +4,8 @@
 import type { Dir, Divider, Edge, ElementType, Fill, Mat, Opening, OpeningType, Project, TreeNode, WinElement } from '../../app/src/types.ts';
 import { isElementValid } from '../../app/src/model/history.ts';
 import { renumberTree } from '../../app/src/model/tree.ts';
+import { colorsForProject, findColor } from '../../app/src/data/colors.ts';
+import { GLASS_TYPES } from '../../app/src/data/glass.ts';
 
 export const MAX_ELEMENTS = 50, MAX_NODES = 500, MAX_DEPTH = 20;
 export const MIN_SIZE = 100, MAX_SIZE = 10000, MIN_SILL_SIZE = 10;
@@ -74,6 +76,17 @@ function parseNode(v: unknown, depth: number, w: Walk): TreeNode {
   return node;
 }
 
+function checkColor(code: string, where: string, project: Project): void {
+  if(!findColor(project, code)){
+    const mat = project.type === 'alu' ? 'алюминия (type: alu)' : 'ПВХ (type: pvc)';
+    fail(`${where} "${code}" — нет такого цвета для ${mat}. Коды: ${colorsForProject(project).map(c => c.code).join(', ')} (список: GET /api/v1/catalog)`);
+  }
+}
+function checkGlass(code: string, where: string): void {
+  if(!GLASS_TYPES.some(g => g.code === code))
+    fail(`${where} "${code}" — нет такого стекла. Коды: ${GLASS_TYPES.map(g => g.code).join(', ')}`);
+}
+
 function parseElement(v: unknown, i: number, project: Project): WinElement {
   const where = `Элемент ${i + 1}`;
   if(!isObj(v)) return fail(`${where}: должен быть объектом`);
@@ -93,13 +106,17 @@ function parseElement(v: unknown, i: number, project: Project): WinElement {
     color: text(v.color, 'color') ?? null,
     history: [], redo: []
   };
-  const glass = text(v.glass, 'glass');
-  if(glass) e.glass = glass;
+  // неизвестный код не должен молча стать белым или прозрачным: бот ошибся — пусть узнает сразу
+  if(e.color) checkColor(e.color, `${where}: color`, project);
+  else if(project.defaultColor) e.color = project.defaultColor;
+  const glass = text(v.glass, 'glass') || project.defaultGlass;
+  if(glass){ checkGlass(glass, `${where}: glass`); e.glass = glass; }
   if(v.net === true) e.net = true;
   if(v.sill === true && type !== 'sill'){          // у отдельного подоконника своего подоконника нет
     e.sill = true;
-    if(typeof v.sillLen === 'number') e.sillLen = v.sillLen;
-    if(typeof v.sillWidth === 'number') e.sillWidth = v.sillWidth;
+    // как форма приложения: длина не задана — ширина окна + 2 × 20 мм напуска, ширина полки — 20 см
+    e.sillLen = typeof v.sillLen === 'number' && v.sillLen > 0 ? v.sillLen : (width + 2 * 20) / 1000;
+    e.sillWidth = typeof v.sillWidth === 'number' && v.sillWidth > 0 ? v.sillWidth : 20;
   }
   if(v.root !== undefined && v.root !== null){
     e.root = parseNode(v.root, 1, { nodes: 0, where });
@@ -126,6 +143,8 @@ export function parseProject(body: unknown): Project {
     const t = text(body[k], k);
     if(t) project[k] = t;
   }
+  if(project.defaultColor) checkColor(project.defaultColor, 'defaultColor', project);
+  if(project.defaultGlass) checkGlass(project.defaultGlass, 'defaultGlass');
   project.elements = body.elements.map((el, i) => parseElement(el, i, project));
   return project;
 }

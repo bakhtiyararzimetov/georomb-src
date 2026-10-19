@@ -20,6 +20,7 @@ const DICT = {
   casementShort:   ['Створная', 'Ochiladigan', 'Ачылуучу'],
   area:            ['Площадь', 'Maydon', 'Аянт'],
   glassColor:      ['Цвет окна', 'Oyna rangi', 'Айнектин түсү'],
+  profileColor:    ['Цвет профиля', 'Profil rangi', 'Профилдин түсү'],
   sill:            ['Подоконник', 'Podokonnik', 'Подоконник'],
   sashes:          ['Створки', 'Tabaqalar', 'Канаттар'],
   andMore:         ['… и ещё', '… va yana', '… жана дагы'],

@@ -197,3 +197,15 @@ test('?format=georomb — файл для «Импорт проектов» в �
     assert.equal(f.projects[0].elements.length, 2);
   });
 });
+
+test('GET /api/v1/catalog — цвета профиля (ПВХ и алюминий) и стёкла для бота, без ключа', async () => {
+  await withApp({ apiKeys: ['k'] }, async base => {
+    const res = await fetch(base + '/api/v1/catalog');
+    assert.equal(res.status, 200);
+    const c = await res.json() as { colors: Record<string, { code: string; name: string; hex: string }[]>; glass: { code: string; name: string }[] };
+    assert.ok(c.colors.pvc.some(x => x.code === 'ral9016' && x.name === 'Белый (RAL 9016)' && /^#[0-9A-F]{6}$/i.test(x.hex)));
+    assert.ok(c.colors.alu.some(x => x.code === 'euras_c0' && /^#/.test(x.hex)), 'у анодирования — примерный цвет');
+    assert.ok(c.glass.some(x => x.code === 'clear') && c.glass.length === 8);
+    assert.equal((await fetch(base + '/api/v1/catalog', { method: 'POST' })).status, 405);
+  });
+});

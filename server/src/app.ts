@@ -8,9 +8,17 @@ import { renderPdfInWorker } from './worker.ts';
 import { projectLayoutJson } from './layoutJson.ts';
 import { docsFile, openapiJson } from './docs.ts';
 import { projectImportFile } from './importFile.ts';
+import { COLOR_OPTIONS, colorHex } from '../../app/src/data/colors.ts';
+import { GLASS_TYPES } from '../../app/src/data/glass.ts';
 
 export const API_PATH = '/api/v1/generate-window-pdf';
 export const LEGACY_PATH = '/api/generate-window-pdf';   // первый адрес: оставлен, чтобы бот не сломался
+export const CATALOG_PATH = '/api/v1/catalog';
+// коды для полей color / defaultColor (по type проекта) и glass / defaultGlass — чтобы бот показывал клиенту выбор
+const CATALOG = Buffer.from(JSON.stringify({
+  colors: Object.fromEntries(Object.entries(COLOR_OPTIONS).map(([mat, list]) => [mat, list.map(c => ({ code: c.code, name: c.name, hex: colorHex(c) }))])),
+  glass: GLASS_TYPES.map(g => ({ code: g.code, name: g.name }))
+}));
 export const MAX_BODY = 1024 * 1024;   // 1 МБ — проект на 50 окон занимает десятки КБ
 const LANGS: PdfLang[] = ['ru', 'uz', 'ky'];
 
@@ -189,6 +197,12 @@ export function createApp(deps: AppDeps = {}): Server {
       if(req.method === 'GET' && url.pathname === '/openapi.json'){
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Content-Length': openapi.length });
         res.end(openapi);
+        return;
+      }
+      if(url.pathname === CATALOG_PATH){
+        if(req.method !== 'GET') throw new HttpError(405, 'method_not_allowed', `Нужен метод GET, а пришёл ${req.method}`, { Allow: 'GET' });
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Content-Length': CATALOG.length, 'Cache-Control': 'public, max-age=3600' });
+        res.end(CATALOG);
         return;
       }
       if(req.method === 'GET' && (url.pathname === '/docs' || url.pathname.startsWith('/docs/'))){

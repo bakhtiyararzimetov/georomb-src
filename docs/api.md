@@ -143,11 +143,16 @@ open("window.pdf", "wb").write(r.content)
       "width": 1500, "height": 1200, // мм, от 100 до 10000
       "qty": 2,                      // штук, по умолчанию 1
       "net": true,                   // москитная сетка
+      "color": "ral7016",            // цвет профиля (рамы); без поля — белый. Коды: GET /api/v1/catalog
+      "glass": "clear",              // стекло: clear, bronze, grey, darkgrey, green, azur, darkblue, privablue
+      "sill": true,                  // подоконник у окна: sillLen (м, по умолчанию ширина + 40 мм), sillWidth (см, 20)
       "root": { ... }                // деления; если не прислать, будет одно глухое стекло
     }
   ]
 }
 ```
+
+**Цвета.** Цвет профиля (`color`, для всех окон сразу — `defaultColor` проекта) и стекло (`glass`, `defaultGlass`) видны на чертеже и подписаны в таблице PDF. Коды и названия отдаёт `GET /api/v1/catalog` (без ключа): `colors.pvc` — для ПВХ, `colors.alu` — для алюминия (`type: alu`), `glass` — стёкла. Неизвестный код — ошибка `400 invalid_project` со списком верных кодов, а не молча белый цвет.
 
 **Деления (`root`)** — это дерево. Узел бывает двух видов:
 

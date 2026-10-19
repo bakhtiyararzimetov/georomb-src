@@ -2,7 +2,7 @@
 // (features/pdf.ts → pdfDrawElement): шапка, крупный чертёж с размерными цепочками, таблица и створки.
 // В приложении то же рисуется на canvas; здесь — SVG, который pdf.ts растеризует через resvg.
 import type { Layout, Project, WinElement } from '../../app/src/types.ts';
-import { elementColorHex } from '../../app/src/data/colors.ts';
+import { colorsForProject, elementColorHex, findColor } from '../../app/src/data/colors.ts';
 import { elementGlassName } from '../../app/src/data/glass.ts';
 import { profileFor } from '../../app/src/data/profiles.ts';
 import { computeLayout, parseMm } from '../../app/src/model/layout.ts';
@@ -34,6 +34,15 @@ function text(s: unknown, x: number, y: number, size: number, o: TextOpts = {}):
   }
   const rot = o.rotate ? ` transform="rotate(-90 ${x} ${y})"` : '';
   return `<text x="${x}" y="${y}" font-size="${size}" font-weight="${o.bold ? 600 : 400}" fill="${o.color || INK}" text-anchor="${o.anchor || 'start'}"${fit}${rot}>${escapeXml(t)}</text>`;
+}
+// значение в таблице: не влезает в строку даже мельче — две строки, а не «…»
+function cellText(s: string, x: number, y: number, maxW: number): string {
+  const size = 30, small = 22, fits = (t: string, sz: number) => t.length * sz * 0.7 <= maxW;
+  if(fits(s, small) || s.indexOf(' ') < 0) return text(s, x, y, size, { bold: true, maxW });
+  // «Антрацит (RAL 7016)» — перенос перед скобкой, иначе — по пробелу ближе к середине
+  let cut = s.lastIndexOf(' (');
+  if(cut <= 0) for(let i = 0; i < s.length; i++) if(s[i] === ' ' && (cut <= 0 || Math.abs(i - s.length / 2) < Math.abs(cut - s.length / 2))) cut = i;
+  return text(s.slice(0, cut), x, y - 12, small, { bold: true, maxW }) + text(s.slice(cut + 1), x, y + 14, small, { bold: true, maxW });
 }
 const line = (x0: number, y0: number, x1: number, y1: number, color: string, w: number) =>
   `<line x1="${x0}" y1="${y0}" x2="${x1}" y2="${y1}" stroke="${color}" stroke-width="${w}"/>`;
@@ -120,16 +129,22 @@ export function elementPageSvg(project: Project, idx: number): string {
     [pdfT('construction'), e.type === 'sill' ? pdfT('typeSill') : (e.type === 'sliding') ? pdfT('slidingShort') : pdfT('casementShort')]
   ];
   const isSill = e.type === 'sill';                    // у отдельного подоконника нет площади окна, стекла и створок
-  if(!isSill) rows.push([pdfT('area'), fmtNum(W * H / 1e6 * qty, 2) + ' м²'], [pdfT('glassColor'), elementGlassName(e)]);
+  if(!isSill){
+    const profile = findColor(project, e.color) || colorsForProject(project)[0];   // без цвета — белый, как на чертеже
+    // у стекла в таблице — без серии («Тёмно-серый», а не «Тёмно-серый (Planibel Dark Grey)»): иначе не влезает
+    rows.push([pdfT('area'), fmtNum(W * H / 1e6 * qty, 2) + ' м²'], [pdfT('glassColor'), elementGlassName(e).replace(/\s*\(.*\)$/, '')],
+              [pdfT('profileColor'), profile ? profile.name : '']);
+  }
   if(e.type === 'sill' || e.sill){
     const g = elementGeometry(e, project.type === 'alu' ? 'alu' : 'pvc');   // как в смете: длина и ширина полки
     rows.push([pdfT('sill'), fmtNum(g.sillLen * qty, 2) + ' ' + pdfT('m') + ' × ' + g.sillWidth + ' ' + pdfT('cm')]);
   }
   if(e.net) rows.push([pdfT('net'), pdfT('yes')]);
+  const step = rows.length > 7 ? 48 : 54;             // 8 строк по 54 не помещаются на лист
   rows.forEach((r, i) => {
-    const y = 1382 + i * 54;
+    const y = 1382 + i * step;
     p.push(text(r[0], M, y, 30, { color: GREY }));
-    p.push(text(r[1], 390, y, 30, { bold: true, maxW: 230 }));
+    p.push(cellText(r[1], 390, y, 230));
   });
   if(!isSill) p.push(text(pdfT('sashes'), 640, 1382, 30, { color: GREY }));
   const leaves = isSill ? [] : out.leaves.map(l => leafDesc(l.node));

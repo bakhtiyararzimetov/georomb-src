@@ -568,6 +568,83 @@
         "description": "Пример ниже — окно 1500×1200 с поворотно-откидной створкой и дверь. Нажмите **Try it out → Execute**: результат можно скачать прямо со страницы.\n\n`format=pdf` — чертежи для клиента; `format=georomb` — файл заказа для владельца (импорт в приложение); `format=json` — координаты, если бот рисует сам.",
         "deprecated": true
       }
+    },
+    "/api/v1/catalog": {
+      "get": {
+        "tags": [
+          "Service"
+        ],
+        "summary": "Цвета профиля и стёкла",
+        "security": [],
+        "description": "Коды для color / defaultColor (colors.pvc — для type pvc, colors.alu — для type alu) и glass / defaultGlass. Бот может показать клиенту выбор по name; hex — примерный цвет для картинки.",
+        "responses": {
+          "200": {
+            "description": "каталог",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "colors": {
+                      "type": "object",
+                      "properties": {
+                        "pvc": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "code": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "hex": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "alu": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "code": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "hex": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "glass": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "code": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -639,6 +716,14 @@
             "items": {
               "$ref": "#/components/schemas/Element"
             }
+          },
+          "defaultColor": {
+            "type": "string",
+            "description": "цвет профиля для всех окон без своего color (коды — GET /api/v1/catalog, по type проекта)"
+          },
+          "defaultGlass": {
+            "type": "string",
+            "description": "стекло для всех окон без своего glass"
           }
         }
       },
@@ -680,6 +765,37 @@
           },
           "root": {
             "$ref": "#/components/schemas/Node"
+          },
+          "color": {
+            "type": "string",
+            "description": "цвет профиля (рамы): код из GET /api/v1/catalog → colors.pvc или colors.alu, по type проекта; без поля — белый",
+            "example": "ral7016"
+          },
+          "glass": {
+            "type": "string",
+            "enum": [
+              "clear",
+              "bronze",
+              "grey",
+              "darkgrey",
+              "green",
+              "azur",
+              "darkblue",
+              "privablue"
+            ],
+            "description": "стекло; без поля — прозрачное"
+          },
+          "sill": {
+            "type": "boolean",
+            "description": "подоконник у окна"
+          },
+          "sillLen": {
+            "type": "number",
+            "description": "длина подоконника, м; без поля — ширина окна + 40 мм"
+          },
+          "sillWidth": {
+            "type": "number",
+            "description": "ширина (глубина) полки, см; по умолчанию 20"
           }
         }
       },

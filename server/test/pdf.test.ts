@@ -71,3 +71,15 @@ test('elementPageSvg: количество 0 — 0 шт, как в прилож�
   p.elements[0].qty = 0;
   assert.ok(elementPageSvg(p, 0).includes('>0 шт<'));
 });
+
+test('elementPageSvg: цвет профиля подписан в таблице (свой или цвет проекта), без цвета — белый', () => {
+  const svg = (o: object, proj: object = {}) => elementPageSvg(parseProject({ ...proj, elements: [{ width: 1000, height: 1000, ...o }] }), 0);
+  assert.ok(svg({ color: 'oak_golden' }).includes('>Золотой дуб<'));
+  const anth = svg({}, { defaultColor: 'ral7016' });
+  assert.ok(anth.includes('>Антрацит<') && anth.includes('>(RAL 7016)<'), 'цвет проекта; длинное название — в две строки');
+  const white = svg({});
+  assert.ok(white.includes('>Цвет профиля<') && white.includes('>Белый<') && white.includes('>(RAL 9016)<'));
+  assert.ok(white.includes('>Прозрачный<') && !white.includes('Planibel'), 'стекло — коротко, одной строкой');
+  assert.ok(!white.includes('…'));
+  assert.ok(!svg({ type: 'sill', width: 1500, height: 200 }).includes('Цвет профиля'), 'у подоконника нет');
+});
