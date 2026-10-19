@@ -40,8 +40,9 @@ function cutRng(seed: number): () => number {
   };
 }
 // точный подбор: набор с максимальной Σ(деталь + пропил) ≤ cap (рюкзак 0/1, количества — двоичным разбиением).
-// Рюкзак идёт по целым мм: деталь с дробным пропилом (2,5 мм) округляется вверх — хлыст не переполнится,
-// а недобор — доли мм на рез. Масштаб ×10/×100 вместо этого замедлял подбор в 10–100 раз.
+// Рюкзак идёт по целым мм (масштаб ×10/×100 замедлял подбор в 10–100 раз): дробная часть пропила (2,5 мм)
+// отбрасывается, а настоящая сумма проверяется после сборки набора — так хлыст не переполнится,
+// а точные укладки (3000 + 2995 при пропиле 2,5) не теряются.
 function cutBestFill(m: Counts, cap: number, k: number, okLeft: ((left: number) => boolean) | null): number[] | null {
   if(cap <= 0) return null;
   const items: [number, number][] = [];
@@ -51,7 +52,7 @@ function cutBestFill(m: Counts, cap: number, k: number, okLeft: ((left: number) 
   });
   if(!items.length) return null;
   const capI = Math.floor(cap + 1e-9);
-  const wOf = (i: number) => Math.ceil(items[i][0] + k - 1e-9) * items[i][1];
+  const wOf = (i: number) => Math.floor(items[i][0] + k + 1e-9) * items[i][1];
   const reach = new Uint8Array(capI + 1), from = new Int32Array(capI + 1);
   reach[0] = 1;
   for(let i = 0; i < items.length; i++){
@@ -66,7 +67,8 @@ function cutBestFill(m: Counts, cap: number, k: number, okLeft: ((left: number) 
       for(let j = 0; j < t; j++) out.push(len);
       x -= wOf(i);
     }
-    if(okLeft && !okLeft(cap - out.reduce((a, l) => a + l + k, 0))) continue;   // настоящий остаток, не округлённый
+    const left = cap - out.reduce((a, l) => a + l + k, 0);           // настоящий остаток, с дробным пропилом
+    if(left < -1e-9 || (okLeft && !okLeft(left))) continue;
     return out;
   }
   return null;

@@ -59,3 +59,15 @@ test('elementPageSvg: отдельный подоконник подписан �
   assert.ok(!svg.includes('Створки') && !svg.includes('глухое стекло') && !svg.includes('Цвет окна'), 'у подоконника нет створок и стекла');
   assert.ok(svg.includes('1,50 м × 20 см'));
 });
+
+test('projectLayoutJson: отдельный подоконник — без рамы и стекла', () => {
+  const j = projectLayoutJson(parseProject({ elements: [{ type: 'sill', width: 1500, height: 200 }] }));
+  assert.equal(j.elements[0].frame, 0);
+  assert.deepEqual([j.elements[0].leaves, j.elements[0].mullions], [[], []]);
+});
+
+test('elementPageSvg: количество 0 — 0 шт, как в приложении', () => {
+  const p = parseProject({ elements: [{ width: 1000, height: 1000 }] });
+  p.elements[0].qty = 0;
+  assert.ok(elementPageSvg(p, 0).includes('>0 шт<'));
+});

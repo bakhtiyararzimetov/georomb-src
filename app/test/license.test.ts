@@ -105,3 +105,8 @@ test('CLI: extend с пустым или дробным --days — ошибка,
     }
   }finally{ rmSync(dir, { recursive: true, force: true }); }
 });
+
+test('CLI: огромный --days — ошибка, а не подписанный срок NaN', () => {
+  assert.equal(cliAddList('99999999999'), 'ERROR');
+  assert.match(cliAddList('36500'), /^\d{8}$/);
+});

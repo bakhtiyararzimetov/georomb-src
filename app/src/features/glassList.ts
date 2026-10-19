@@ -1,17 +1,16 @@
 // Экран «Стёкла и сетки»: список стёкол для стекольщика, москитные сетки, раскрой стекла на листах, PDF.
-import { DEFAULT_QTY, S } from '../state.ts';
+import { S } from '../state.ts';
 import type { GlassCutSettings, Project } from '../types.ts';
 import { $, $input, escapeHtml, showToast } from '../ui/dom.ts';
 import { findGlass, glassSwatchCss } from '../data/glass.ts';
 import { projectMat } from '../data/colors.ts';
-import { elementGeometry, fmtNum } from '../model/pricing.ts';
+import { elementGeometry, fmtNum, pieceCount } from '../model/pricing.ts';
 import { type SheetPiece, type SheetResult, sheetCut } from '../model/sheetCut.ts';
 import { deliverFile } from '../platform/share.ts';
 import { getCurrentProject } from '../storage.ts';
 import { PDF_GREY, PDF_INK, PDF_LINE, PDF_M, PDF_PH, PDF_PW, type JpegPage, type PdfPage,
          pdfCanvasJpeg, pdfFromJpegs, pdfNewPage, pdfState, pdfText, safeFileName } from './pdf.ts';
 import { openPdfOptions, pdfT } from './pdfI18n.ts';
-import { parseMm } from '../model/layout.ts';
 
 // ===== настройки раскроя листов =====
 const GC_KEY = 'iwd.glassCut.v1';
@@ -50,7 +49,7 @@ export function collectPanes(project: Project): PaneList {
   const glass: GlassGroup[] = [], nets: SizeRow[] = [];
   project.elements.forEach(e => {
     if(e.type === 'sill') return;
-    const q = parseMm(e.qty), qty = Math.max(0, Math.round(Number.isFinite(q) ? q : DEFAULT_QTY));
+    const qty = pieceCount(e.qty);
     if(!qty) return;
     const g = elementGeometry(e, mat);
     const gt = findGlass(e.glass);

@@ -103,3 +103,17 @@ test('импорт упёрся в память — в приложении ос
   await importProjectsFromFile(fileInput(backup([proj([el()], { name: 'Чужой' })])));
   assert.deepEqual(S.projects.map(p => p.name), ['Свой']);
 });
+
+test('откат неудачного импорта возвращает и счётчики id', async () => {
+  S.projects = [proj([], { id: 7, number: 7, name: 'Свой' })];
+  S.nextId = 8; S.nextElemId = 3;
+  ls.setItem(PROJECTS_STORAGE_KEY, JSON.stringify({ projects: S.projects }));
+  ls.quotaBytes = ls.getItem(PROJECTS_STORAGE_KEY)!.length + 40;
+  await importProjectsFromFile(fileInput(backup([proj([el()], { name: 'Чужой' })])));
+  assert.deepEqual([S.nextId, S.nextElemId], [8, 3]);
+});
+
+test('импорт: у отдельного подоконника нет флага «с подоконником»', async () => {
+  await importProjectsFromFile(fileInput(backup([proj([el({ type: 'sill', width: 1500, height: 200, sill: true, sillLen: 1.6, sillWidth: 20 })])])));
+  assert.ok(!S.projects[0].elements[0].sill);
+});

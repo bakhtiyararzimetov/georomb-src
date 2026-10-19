@@ -184,7 +184,8 @@ async function pdfDrawList(pg: PdfPage, project: Project, res: ProjectCost, plan
       pdfText(ctx, pdfTypeName(e), 310, y + 70, 34, { bold:true });
     }
     pdfText(ctx, '× ' + fmtNum(c.qty, 0, 2), PDF_PW - PDF_M, y + 55, 40, { bold:true, align:'right' });
-    pdfText(ctx, pdfOpts().prices ? fmtMoney(c.roundedTotal || 0) : fmtNum(c.g.area, 2) + ' м²', PDF_PW - PDF_M, y + 96, 28, { color:PDF_GREY, align:'right' });
+    const sub = e.type === 'sill' ? fmtNum(c.g.sillLen * c.qty, 2) + ' ' + pdfT('m') : fmtNum(c.g.area, 2) + ' м²';   // у подоконника — длина
+    pdfText(ctx, pdfOpts().prices ? fmtMoney(c.roundedTotal || 0) : sub, PDF_PW - PDF_M, y + 96, 28, { color:PDF_GREY, align:'right' });
     ctx.fillStyle = PDF_LINE; ctx.fillRect(PDF_M, y + PDF_LIST_ROW - 1, PDF_PW - 2*PDF_M, 1.5);
   }
 }

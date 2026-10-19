@@ -104,8 +104,8 @@ export function addElementItem(): void {
   // запоминаем цвет рамы и стекло: в форме следующего элемента этого проекта они выбраны сразу
   if(colorCode) project.defaultColor = colorCode;
   project.defaultGlass = glassCode;
-  const el: WinElement = { id: S.nextElemId++, type, width, height, qty, color: colorCode, glass: glassCode,
-    sill: sill.needSill, sillLen: sill.sillLen, sillWidth: sill.sillWidth, history: [], redo: [] };
+  const el: WinElement = { id: S.nextElemId++, type, width, height, qty, color: colorCode, glass: glassCode, history: [], redo: [] };
+  setSill(el, sill);
   setNet(el, net);
   project.elements.push(el);
   closeElementForm();
@@ -268,14 +268,16 @@ export function openElementSummary(): void {
   const rows: [string, unknown][] = [
     ['Номер элемента', S.currentElementIndex + 1],
     ['Тип элемента', e.type === 'sill' ? 'Подоконник' : e.type === 'sliding' ? 'Раздвижение' : 'Створный'],
-    ['Цвет рамы', col ? (col.ral && !String(col.name).includes(col.ral) ? col.name + ' (' + col.ral + ')' : col.name) : '—'],
-    ['Цвет окна', elementGlassName(e)],
-    ['Размер', e.width + ' × ' + e.height + ' мм'],
-    ['Количество', fmtNum(c.qty, 0)],
+    ['Цвет рамы', col ? (col.ral && !String(col.name).includes(col.ral) ? col.name + ' (' + col.ral + ')' : col.name) : '—']
+  ];
+  const isSill = e.type === 'sill';                    // у отдельного подоконника нет стекла, площади окна и профилей
+  if(!isSill) rows.push(['Цвет окна', elementGlassName(e)]);
+  rows.push(['Размер', e.width + ' × ' + e.height + ' мм'], ['Количество', fmtNum(c.qty, 0)]);
+  if(!isSill) rows.push(
     ['Площадь элемента', fmtNum(c.g.area, 2) + ' м²'],
     ['Площадь стекла', fmtNum(c.g.glassArea, 1) + ' м²'],
     ['Длина профилей', fmtNum(c.g.profileLen, 1) + ' м']
-  ];
+  );
   if(e.type === 'sill' || e.sill) rows.push(['Подоконник', fmtNum((c.g.sillLen || 0) * c.qty, 2) + ' м, полка ' + (c.g.sillWidth || 20) + ' см (' + fmtMoney(c.sillCost * c.qty) + ')']);
   if(c.g.nets.length) rows.push(['Москитная сетка', c.g.nets.length + ' шт: ' + c.g.nets.map(n => n.w + '×' + n.h).join(', ') + ' мм']);
   if(c.g.reinfLen > 0) rows.push(['Армирование', fmtNum(c.g.reinfLen, 1) + ' м']);

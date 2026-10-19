@@ -106,3 +106,8 @@ test('дробный пропил не замедляет точный подб�
   assert.ok(fracMs < Math.max(1500, intMs * 3), `дробный пропил: ${fracMs} мс, целый: ${intMs} мс`);
   for(const v of r.variants) for(const p of v.plans) assert.ok(p.cuts.reduce((a, x) => a + x, 0) + 2.25 * (p.cuts.length - 1) <= 6000 + 1e-9, 'хлыст переполнен');
 });
+
+test('«Длинная + добор» с дробным пропилом находит точную укладку (3000 + 2995, пропил 2,5)', () => {
+  const r = cutOptimize([3000, 2995], 6000, { ...C, k: 2.5 }, [], 0);
+  for(const v of r.variants) assert.equal(v.newBars, 1, v.name);
+});

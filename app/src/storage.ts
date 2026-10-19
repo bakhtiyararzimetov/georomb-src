@@ -7,6 +7,8 @@ import { showToast } from './ui/dom.ts';
 export const PROJECTS_STORAGE_KEY = 'iwd.projects.v1';
 /** Сюда откладываются повреждённые данные перед тем, как приложение начнёт с чистого листа. */
 export const PROJECTS_CORRUPT_KEY = 'iwd.projects.corrupt.v1';
+/** Последняя (самая свежая) поломка — если первая уже занята. */
+export const PROJECTS_CORRUPT_LAST_KEY = 'iwd.projects.corruptLast.v1';
 
 // история отмены (history / redo) не сохраняется — она нужна только в течение сессии
 export const withoutHistory = (k: string, v: unknown): unknown => (k === 'history' || k === 'redo') ? undefined : v;
@@ -20,7 +22,7 @@ export function notifyDataChanged(): void {
 
 let lastSaveWarn = 0;
 /** false — не сохранилось (память переполнена или недоступна); пользователь об этом узнаёт. */
-export function saveProjects(): boolean {
+export function saveProjects(silent = false): boolean {
   let ok = true;
   try{
     localStorage.setItem(PROJECTS_STORAGE_KEY,
@@ -28,7 +30,7 @@ export function saveProjects(): boolean {
   }catch{
     ok = false;
     // не на каждое нажатие: одно предупреждение в 10 с
-    if(Date.now() - lastSaveWarn > 10_000){
+    if(!silent && Date.now() - lastSaveWarn > 10_000){
       lastSaveWarn = Date.now();
       try{ showToast('Не удалось сохранить: память телефона заполнена. Удалите старые проекты или сделайте экспорт.', 5000); }catch{ /* нет DOM */ }
     }
@@ -37,8 +39,12 @@ export function saveProjects(): boolean {
   return ok;
 }
 function keepCorrupt(raw: string): void {
-  // только первая поломка: в ней настоящие данные, позже поверх них уже работали с демо-проектами
-  try{ if(localStorage.getItem(PROJECTS_CORRUPT_KEY) === null) localStorage.setItem(PROJECTS_CORRUPT_KEY, raw); }catch{ /* без копии */ }
+  // две копии: первая поломка (её не затираем) и последняя — в ней самые свежие данные
+  try{
+    const first = localStorage.getItem(PROJECTS_CORRUPT_KEY);
+    if(first === null) localStorage.setItem(PROJECTS_CORRUPT_KEY, raw);
+    else if(first !== raw) localStorage.setItem(PROJECTS_CORRUPT_LAST_KEY, raw);
+  }catch{ /* без копии */ }
 }
 
 export function loadProjects(): void {
@@ -63,12 +69,12 @@ export function loadProjects(): void {
     if(raw) keepCorrupt(raw);
   }
   try{
-    const usedNumbers = new Set(S.projects.map(p => p.number).filter(n => n != null));
+    const usedNumbers = new Set(S.projects.map(p => Number(p.number)).filter(n => Number.isFinite(n)));
     S.projects.forEach(p => {
       if(!Array.isArray(p.elements)) p.elements = [];
       p.elements = p.elements.filter(e => e && typeof e === 'object');
       if(p.number == null){                                                   // проекты без номера: номер = id, если он свободен
-        p.number = usedNumbers.has(p.id) ? Math.max(0, ...[...usedNumbers].map(Number).filter(Number.isFinite)) + 1 : p.id;
+        p.number = usedNumbers.has(p.id) ? Math.max(0, ...usedNumbers) + 1 : p.id;
         usedNumbers.add(p.number);
       }
       if(typeof p.name !== 'string' || !p.name.trim()) p.name = 'Проект ' + p.number;
@@ -76,6 +82,7 @@ export function loadProjects(): void {
       (['phone', 'address', 'description'] as const).forEach(k => { if(typeof p[k] !== 'string') p[k] = ''; });
       p.elements.forEach(e => {
         e.history = []; e.redo = [];
+        if(e.type === 'sill' && e.sill){ e.sill = false; e.sillLen = 0; e.sillWidth = 0; }   // у отдельного подоконника своего нет
         if(Number.isFinite(e.id)) S.nextElemId = Math.max(S.nextElemId, e.id + 1);
         S.nextNodeId = Math.max(S.nextNodeId, maxNodeId(e.root) + 1);         // новые узлы не должны повторять nid загруженных
       });

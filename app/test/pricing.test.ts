@@ -100,3 +100,8 @@ test('отходы «по полной длине»: неизвестный ко
   assert.equal(a.waste!.bars, 1, 'контроль: рамы четырёх окон 300×300 — один хлыст');
   assert.equal(b.waste!.bars, a.waste!.bars);
 });
+
+test('pieceCount: одно правило количества для раскроя, стекла и отходов', async () => {
+  const { pieceCount } = await import('../src/model/pricing.ts');
+  assert.deepEqual([0, 0.4, 1, 2.5, 3, '2', '', 'x', -1].map(pieceCount), [0, 1, 1, 3, 3, 2, 1, 1, 0]);
+});

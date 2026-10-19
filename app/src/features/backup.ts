@@ -176,7 +176,7 @@ function cleanElement(e: unknown, project: Project): WinElement | null {
   if(typeof src.slidingTemplate === 'string' && SLIDING_TEMPLATES[src.slidingTemplate]) el.slidingTemplate = src.slidingTemplate;
   if(src.net === true) el.net = true;
   // подоконник под окном (длина в метрах, ширина полки в см)
-  if(src.sill === true){
+  if(src.sill === true && type !== 'sill'){            // у отдельного подоконника своего нет
     const len = safeNum(src.sillLen, 0.001, 100), w = safeNum(src.sillWidth, 1, 200);
     if(len !== null){ el.sill = true; el.sillLen = len; el.sillWidth = (w !== null && SILL_WIDTHS.includes(w)) ? w : 20; }
   }
@@ -225,6 +225,7 @@ export async function importProjectsFromFile(input: HTMLInputElement): Promise<v
     const data = JSON.parse(await file.text()) as Raw | null;
     if(!data || data.format !== BACKUP_FORMAT || !Array.isArray(data.projects)){ showToast('Это не файл резервной копии проектов'); return; }
 
+    const before = { projects: S.projects, nextId: S.nextId, nextElemId: S.nextElemId, nextNodeId: S.nextNodeId };   // для отката
     const used = new Set(S.projects.map(p => Number(p.number)));
     const have = new Set(S.projects.map(projectFingerprint));   // повторный импорт той же копии не дублирует проекты
     let added = 0, skipped = 0, dups = 0;
@@ -259,10 +260,9 @@ export async function importProjectsFromFile(input: HTMLInputElement): Promise<v
       added++;
     });
     if(added === 0 && !dups){ showToast('В файле нет проектов'); return; }
-    const before = { projects: S.projects, nextId: S.nextId, nextElemId: S.nextElemId };
     S.projects = fresh.concat(S.projects);               // импортированные — сверху
     // сначала проекты: не сохранились (память заполнена) — возвращаем всё как было, цены и склад не трогаем
-    if(!saveProjects()){
+    if(!saveProjects(true)){
       Object.assign(S, before);
       rerenderList();
       showToast('Проекты не сохранены: память телефона заполнена. Удалите старые проекты и повторите импорт.', 6000);

@@ -120,3 +120,12 @@ test('перетаскивание размера понимает запяту�
   assert.equal(setElementSize(e, 'width', 1500.5), true);
   assert.deepEqual(e.root!.sizes, [500, 500, 500.5], 'ширина не менялась — ячейки тоже');
 });
+
+test('сводка отдельного подоконника — без строк окна', async () => {
+  const { openElementSummary } = await import('../src/features/elementForm.ts');
+  e.type = 'sill'; e.width = 1500; e.height = 200;
+  openElementSummary();
+  const html = dom.el('summaryBody').innerHTML;
+  for(const row of ['Цвет окна', 'Площадь стекла', 'Длина профилей', 'Площадь элемента']) assert.ok(!html.includes(row), row);
+  assert.ok(html.includes('Подоконник'));
+});

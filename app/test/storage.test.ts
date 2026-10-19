@@ -82,3 +82,28 @@ test('повреждённая копия: сохраняется первая, 
   loadProjects();
   assert.equal(ls.getItem('iwd.projects.corrupt.v1'), first);
 });
+
+test('повреждённые копии: первая остаётся, а последняя тоже сохраняется отдельно', () => {
+  const partial = JSON.stringify({ projects: [good(5), null] });
+  ls.setItem(PROJECTS_STORAGE_KEY, partial);
+  loadProjects();                                   // частичная поломка — первая копия
+  const later = '{"projects":[' + JSON.stringify(good(7)) + ',{"id":8,"name":"обрыв';
+  ls.setItem(PROJECTS_STORAGE_KEY, later);
+  loadProjects();                                   // полная поломка через месяцы
+  assert.equal(ls.getItem('iwd.projects.corrupt.v1'), partial);
+  assert.equal(ls.getItem('iwd.projects.corruptLast.v1'), later);
+});
+
+test('уникальные номера: номер строкой «5» тоже занят', () => {
+  ls.setItem(PROJECTS_STORAGE_KEY, JSON.stringify({ projects: [{ ...good(4), number: '5' }, good(5)] }));
+  loadProjects();
+  assert.equal(new Set(S.projects.map(p => Number(p.number))).size, 2, S.projects.map(p => p.number).join(', '));
+});
+
+test('у отдельного подоконника из старых данных снимается флаг «с подоконником»', () => {
+  const p = good(5);
+  p.elements[0] = { ...p.elements[0], type: 'sill', sill: true, sillLen: 1.6 };
+  ls.setItem(PROJECTS_STORAGE_KEY, JSON.stringify({ projects: [p] }));
+  loadProjects();
+  assert.ok(!S.projects[0].elements[0].sill);
+});

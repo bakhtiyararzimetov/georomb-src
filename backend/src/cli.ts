@@ -42,10 +42,15 @@ function addDays(d: Date, n: number): Date { const x = new Date(d); x.setDate(x.
 function toDate(n: string): Date { const v = Number(n); return new Date(Math.floor(v / 10000), Math.floor(v / 100) % 100 - 1, v % 100); }
 // без --days и --days 0 — навсегда; иначе только целое число дней: опечатка («3O», «-30», «30д») — ошибка,
 // а не бессрочная лицензия
+const MAX_DAYS = 36500;                                 // 100 лет; больше — дата не помещается в YYYYMMDD
+function parseDays(days: string): number {
+  const t = days.trim();
+  if(!/^\d+$/.test(t) || Number(t) > MAX_DAYS) throw new Error('--days: целое число дней от 0 до ' + MAX_DAYS + ' (0 — навсегда), а не «' + days + '»');
+  return Number(t);
+}
 function expFromDays(days: string | undefined): string {
   if(days === undefined) return '0';
-  if(!/^\d+$/.test(days.trim())) throw new Error('--days: нужно целое число дней (0 — навсегда), а не «' + days + '»');
-  const n = Number(days);
+  const n = parseDays(days);
   return n > 0 ? String(dateNum(addDays(new Date(), n))) : '0';
 }
 function fmtExp(exp: string): string { return exp === '0' ? 'навсегда' : exp.slice(6, 8) + '.' + exp.slice(4, 6) + '.' + exp.slice(0, 4); }
@@ -103,8 +108,8 @@ async function main(): Promise<void> {
     case 'extend': {
       const id = needId(pos[0]);
       const r = findRow(rows, id);
-      if(opt.days === undefined || !/^\d+$/.test(opt.days.trim())) throw new Error('Укажите --days N — целое число дней (0 — навсегда)');
-      const n = Number(opt.days);
+      if(opt.days === undefined) throw new Error('Укажите --days N — целое число дней (0 — навсегда)');
+      const n = parseDays(opt.days);
       let exp = '0';
       if(n > 0){
         const base = r.exp === '0' || dateNum() > Number(r.exp) ? new Date() : toDate(r.exp);

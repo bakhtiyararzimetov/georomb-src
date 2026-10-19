@@ -21,6 +21,10 @@ export function projectLayoutJson(project: Project): LayoutJson {
   return {
     name: project.name,
     elements: project.elements.map((e, i) => {
+      if(e.type === 'sill'){                               // отдельный подоконник: полка, без рамы и стекла
+        return { index: i + 1, type: e.type, width: Number(e.width), height: Number(e.height), qty: Number(e.qty) || 1,
+                 frame: 0, leaves: [], mullions: [] };
+      }
       const out = computeLayout(e, profile);
       return {
         index: i + 1, type: e.type, width: out.W, height: out.H, qty: Number(e.qty) || 1,

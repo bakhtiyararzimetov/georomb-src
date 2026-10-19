@@ -5,7 +5,7 @@ import type { Layout, Project, WinElement } from '../../app/src/types.ts';
 import { elementColorHex } from '../../app/src/data/colors.ts';
 import { elementGlassName } from '../../app/src/data/glass.ts';
 import { profileFor } from '../../app/src/data/profiles.ts';
-import { computeLayout } from '../../app/src/model/layout.ts';
+import { computeLayout, parseMm } from '../../app/src/model/layout.ts';
 import { globalChain, type DimSeg } from '../../app/src/model/dims.ts';
 import { elementGeometry, fmtNum } from '../../app/src/model/pricing.ts';
 import { drawingSvg, leafDesc } from '../../app/src/render/drawingSvg.ts';
@@ -92,7 +92,7 @@ export function drawLayout(e: WinElement, project: Project): Layout {
 export function elementPageSvg(project: Project, idx: number): string {
   const e = project.elements[idx], total = project.elements.length;
   const out = drawLayout(e, project);
-  const W = out.W, H = out.H, qty = Number(e.qty) || 1;
+  const W = out.W, H = out.H, q = parseMm(e.qty), qty = Number.isFinite(q) && q >= 0 ? q : 1;   // 0 шт — 0, как в приложении
   const p: string[] = [];
   // шапка
   p.push(text(project.name, M, 78, 26, { color: GREY, maxW: 800 }));

@@ -265,6 +265,13 @@ export function elementGeometry(e: WinElement, mat: Mat): Geometry {
   return g;
 }
 
+/** Сколько штук раскраивать / заказывать: 0 — ничего, дробное (0,4) — хотя бы 1, не число — по умолчанию. */
+export function pieceCount(qty: unknown): number {
+  const q = parseMm(qty);
+  if(!Number.isFinite(q)) return DEFAULT_QTY;
+  return q > 0 ? Math.max(1, Math.round(q)) : 0;
+}
+
 export interface ElementCost {
   g: Geometry; qty: number; mat: Mat;
   profileCost: number; glassCost: number; panelCost: number; sillCost: number; accCost: number;
@@ -321,7 +328,7 @@ export function profileCutWaste(project: Project, items: ElementCost[], mode: 'f
   const roles = (S.prices.reinf > 0 && mat === 'pvc') ? [...PRICED_ROLES, 'reinf' as PieceRole] : PRICED_ROLES;
   project.elements.forEach((e, i) => {
     const c = items[i];
-    const qty = Math.max(0, Math.round(c.qty));
+    const qty = pieceCount(e.qty);
     roles.forEach(role => {
       const lens = c.g.pieces[role];
       if(!lens.length || !qty) return;
