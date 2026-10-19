@@ -4,7 +4,7 @@ import { notifyDataChanged } from '../storage.ts';
 import type { Mat, PriceSettings, Project, Rect, SubLayout, TreeNode, WasteMode, WinElement } from '../types.ts';
 import { findColor, projectMat } from '../data/colors.ts';
 import { NET_OVERLAP, REINF_MULLION_OFFSET, profileFor, sashInset, sashOverhang, sashProfile } from '../data/profiles.ts';
-import { findGlass } from '../data/glass.ts';
+import { GLASS_TYPES, findGlass } from '../data/glass.ts';
 import { computeLayout, insetRect, layoutNode, parseMm } from './layout.ts';
 import { cutOptimize } from './cutOptimizer.ts';
 
@@ -100,6 +100,14 @@ export function loadPriceSettings(): PriceSettings {
       if(s.works && typeof s.works === 'object') Object.assign(base.works, s.works);
     }
   }catch{ /* localStorage недоступен — работаем на дефолтах */ }
+  // новые поля — только числа ≥ 0 и только известные виды стекла (иначе смета разбивается на неизвестный вид)
+  const nn = (v: unknown) => { const x = Number(v); return isFinite(x) && x > 0 ? x : 0; };
+  const gbt: Record<string, number> = {};
+  GLASS_TYPES.forEach(g => { const v = nn(base.glassByType[g.code]); if(v) gbt[g.code] = v; });
+  base.glassByType = gbt;
+  base.bead = nn(base.bead); base.seal = nn(base.seal);
+  base.colorPct = { colored: Math.min(100, nn(base.colorPct.colored)), laminated: Math.min(100, nn(base.colorPct.laminated)) };
+  (Object.keys(base.works) as (keyof PriceSettings['works'])[]).forEach(k => { base.works[k] = nn(base.works[k]); });
   return base;
 }
 export function persistPriceSettings(): void {
@@ -448,8 +456,7 @@ export function calcProject(project: Project): ProjectCost {
         const q = sumBy(g => (g.len && g.len[k]) || 0, only);
         return q > 1e-9 ? acc + roundHalfEven(roundHalfEven(p[k] || 0, d) * roundHalfEven(q, 1), d) : acc;
       }, 0);
-      raw.push({ name:'Доплата: ' + label + ', ' + fmtNum(pc, 0, 2) + '%', unit:'м', price:0,
-        qty: of.reduce((a, c) => a + c.g.profileLen * c.qty, 0), fixedSum: base * pc / 100 });
+      raw.push({ name:'Доплата: ' + label + ', ' + fmtNum(pc, 0, 2) + '%', unit:'шт', price:0, qty: 1, fixedSum: base * pc / 100 });
     });
     if(withWorks && project.works){
       const wk = project.works, wp = ps.works;
@@ -457,7 +464,7 @@ export function calcProject(project: Project): ProjectCost {
       if(wk.install && wp.install > 0)   raw.push({ name:'Монтаж',   unit:'м²', price:wp.install,   qty: sumBy(g => g.area) });
       if(wk.dismantle && wp.dismantle > 0) raw.push({ name:'Демонтаж', unit:'м²', price:wp.dismantle, qty: sumBy(g => g.area) });
       if(wk.slopes && wp.slopes > 0)     raw.push({ name:'Откосы',   unit:'м',  price:wp.slopes,    qty: sumBy(g => (2 * g.H + g.W) / 1000, windows) });
-      if(wk.delivery && wp.delivery > 0) raw.push({ name:'Доставка', unit:'шт', price:wp.delivery,  qty: 1 });
+      if(wk.delivery && wp.delivery > 0 && list.some(c => c.qty > 0)) raw.push({ name:'Доставка', unit:'шт', price:wp.delivery, qty: 1 });
     }
     return raw.filter(l => l.qty > 1e-9).map(l => {
       const qty = roundHalfEven(l.qty, l.unit === 'шт' ? 0 : 1);

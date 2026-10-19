@@ -192,3 +192,30 @@ test('без новых полей смета такая же, как раньш
   assert.equal(r.due, r.grand);
   assert.equal(r.grand, r.subtotal + r.tax);
 });
+
+test('доставка без окон в проекте не попадает в смету', () => {
+  S.prices = prices();
+  S.prices.works = { install: 0, dismantle: 0, slopes: 0, delivery: 5000 };
+  const pr = project([]); pr.works = { delivery: true };
+  assert.equal(calcProject(pr).subtotal, 0);
+  const z = project([el({ qty: 0 })]); z.works = { delivery: true };
+  assert.equal(calcProject(z).lines.find(l => l.name === 'Доставка'), undefined);
+});
+
+test('строка доплаты за цвет: 1 шт по цене суммы — цена × кол-во = сумма', () => {
+  S.prices = prices();
+  S.prices.colorPct = { colored: 10, laminated: 0 };
+  const l = calcProject(project([el({ color: 'ral8017' })])).lines.find(x => x.name.startsWith('Доплата'))!;
+  assert.deepEqual([l.qty, l.unit, l.price], [1, 'шт', l.sum]);
+});
+
+test('загрузка цен: строки в числа, неизвестные виды стекла и отрицательные значения отбрасываются', async () => {
+  const { loadPriceSettings, PRICE_STORAGE_KEY } = await import('../src/model/pricing.ts');
+  localStorage.setItem(PRICE_STORAGE_KEY, JSON.stringify({ colorPct: { colored: '7' }, glassByType: { hack: 5, bronze: '900' }, bead: -50, works: { install: '2000' } }));
+  const p = loadPriceSettings();
+  assert.deepEqual(p.colorPct, { colored: 7, laminated: 0 });
+  assert.deepEqual(p.glassByType, { bronze: 900 });
+  assert.equal(p.bead, 0);
+  assert.equal(p.works.install, 2000);
+  localStorage.removeItem(PRICE_STORAGE_KEY);
+});

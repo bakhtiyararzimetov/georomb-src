@@ -1455,6 +1455,10 @@
     color:var(--header); font-size:var(--fs-xs); font-weight:600; }
   .est-unit-btn.static{ background:none; border-color:transparent; color:var(--ink-soft); font-weight:400; }
   .price-total .due span:last-child{ color:var(--header); }
+  .est-inputs{ margin-top:18px; display:flex; flex-direction:column; gap:10px; }
+  .est-inputs .est-input-row{ display:flex; justify-content:space-between; align-items:center; font-size:var(--fs-sm); }
+  .est-unit-sel{ min-width:64px; padding:4px 6px; border:1px solid var(--line); border-radius:var(--radius-sm, 8px); background:var(--bg-soft, #eef3fb);
+    color:var(--header); font-size:var(--fs-xs); font-weight:600; }
 
   /* ===== Язык и состав PDF ===== */
   .pdf-opt-langs{ display:flex; flex-direction:column; gap:10px; margin-bottom:14px; }

@@ -101,18 +101,17 @@ export function renderPriceEstimate(): void {
       </div>
       ${res.waste ? `<div class="price-note">Отходы по раскрою: ${res.waste.bars} хлыст(ов), ${fmtNum(res.waste.m, 1)} м в цене. Пропил ${S.cutting.kerf} мм, мин. обрезок ${S.cutting.minRemnant} мм — из настроек раскроя.</div>` : ''}
       ${worksBlock(project.works || {})}
-      <div class="price-total">
-        <div><span>Всего</span><span>${fmtMoney(res.subtotal)}</span></div>
+      <div class="est-inputs">
         <div class="est-input-row">
           <span>Скидка</span>
           <span class="est-input">
             <input type="text" inputmode="decimal" placeholder="0" value="${project.discount && project.discount.value ? escapeAttr(project.discount.value) : ''}" onchange="setEstimateDiscount(this.value)">
-            <button class="est-unit-btn" onclick="toggleEstimateDiscountMode()">${project.discount && project.discount.mode === 'pct' ? '%' : escapeHtml(S.prices.currency)}</button>
+            <select class="est-unit-sel" onchange="setEstimateDiscountMode(this.value)">
+              <option value="sum"${project.discount && project.discount.mode === 'pct' ? '' : ' selected'}>${escapeHtml(S.prices.currency)}</option>
+              <option value="pct"${project.discount && project.discount.mode === 'pct' ? ' selected' : ''}>%</option>
+            </select>
           </span>
         </div>
-        ${res.discount > 0 ? `<div><span class="muted">После скидки</span><span>${fmtMoney(res.subtotal - res.discount)}</span></div>` : ''}
-        <div><span class="muted">Налог (${fmtNum(res.taxRate, 0)} %)</span><span>${fmtMoney(res.tax)}</span></div>
-        <div class="grand"><span>Итого (${escapeHtml(S.prices.currency)})</span><span>${fmtMoney(res.grand)}</span></div>
         <div class="est-input-row">
           <span>Аванс</span>
           <span class="est-input">
@@ -120,8 +119,8 @@ export function renderPriceEstimate(): void {
             <span class="est-unit-btn static">${escapeHtml(S.prices.currency)}</span>
           </span>
         </div>
-        ${res.advance > 0 ? `<div class="grand due"><span>Остаток к оплате</span><span>${fmtMoney(res.due)}</span></div>` : ''}
       </div>
+      <div class="price-total" id="estTotals">${totalsHtml(res)}</div>
 
       <details class="est-elements"${priceElementsOpen ? ' open' : ''} ontoggle="setPriceElementsOpen(this.open)">
         <summary>По элементам</summary>
@@ -145,6 +144,23 @@ export function renderPriceEstimate(): void {
       </details>`;
 }
 
+// итоги отдельно от полей ввода: при вводе скидки и аванса перерисовываются только они — поле и список
+// единиц остаются на месте, нажатие не теряется
+function totalsHtml(res: ReturnType<typeof calcProject>): string {
+  const cur = escapeHtml(S.prices.currency);
+  return `
+        <div><span>Всего</span><span>${fmtMoney(res.subtotal)}</span></div>
+        ${res.discount > 0 ? `<div><span class="muted">Скидка</span><span>− ${fmtMoney(res.discount)}</span></div>` : ''}
+        <div><span class="muted">Налог (${fmtNum(res.taxRate, 0)} %)</span><span>${fmtMoney(res.tax)}</span></div>
+        <div class="grand"><span>Итого (${cur})</span><span>${fmtMoney(res.grand)}</span></div>
+        ${res.advance > 0 ? `<div><span class="muted">Аванс</span><span>− ${fmtMoney(res.advance)}</span></div>
+        <div class="grand due"><span>Остаток к оплате</span><span>${fmtMoney(res.due)}</span></div>` : ''}`;
+}
+function refreshTotals(): void {
+  const project = getCurrentProject(), box = document.getElementById('estTotals');
+  if(project && box) box.innerHTML = totalsHtml(calcProject(project));
+}
+
 // работы: переключатели только для тех, у кого задана цена; нет ни одной цены — подсказка, где их задать
 function worksBlock(on: Partial<Record<WorkKey, boolean>>): string {
   const priced = WORKS.filter(([k]) => S.prices.works[k] > 0);
@@ -159,7 +175,13 @@ function worksBlock(on: Partial<Record<WorkKey, boolean>>): string {
         </label>`).join('')}
       </div>`;
 }
-const parseMoney = (v: string): number => { const n = parseFloat(String(v).replace(/\s/g, '').replace(',', '.')); return isFinite(n) && n > 0 ? n : 0; };
+/** «1 000,50», «1.000,50», «1,5» → число; минус и мусор — 0. */
+export function parseMoney(v: string): number {
+  let t = String(v).replace(/[\s\u00a0]/g, '');
+  if(t.includes(',') && t.includes('.')) t = t.replace(/\./g, '');   // точка — разделитель тысяч
+  const n = parseFloat(t.replace(',', '.'));
+  return isFinite(n) && n > 0 ? n : 0;
+}
 export function toggleEstimateWork(key: WorkKey, on: boolean): void {
   const project = getCurrentProject();
   if(!project || !WORKS.some(([k]) => k === key)) return;
@@ -173,19 +195,19 @@ export function setEstimateDiscount(v: string): void {
   const project = getCurrentProject();
   if(!project) return;
   const mode = project.discount ? project.discount.mode : 'sum';
-  const value = mode === 'pct' ? Math.min(100, parseMoney(v)) : parseMoney(v);
-  if(value > 0) project.discount = { mode, value }; else delete project.discount;
+  project.discount = { mode, value: mode === 'pct' ? Math.min(100, parseMoney(v)) : parseMoney(v) };
   saveProjects();
-  renderPriceEstimate();
+  refreshTotals();
 }
-export function toggleEstimateDiscountMode(): void {
+/** Смена единиц (₸ / %) обнуляет скидку: 5000 ₸ не должны превратиться в 100%. */
+export function setEstimateDiscountMode(mode: string): void {
   const project = getCurrentProject();
-  if(!project) return;
-  const d = project.discount || { mode: 'sum' as const, value: 0 };
-  // режим запоминается и с нулевой скидкой — чтобы следующее число было в выбранных единицах
-  project.discount = { mode: d.mode === 'pct' ? 'sum' : 'pct', value: d.mode === 'sum' ? Math.min(100, d.value) : d.value };
+  if(!project || (mode !== 'sum' && mode !== 'pct')) return;
+  project.discount = { mode, value: 0 };
   saveProjects();
-  renderPriceEstimate();
+  const inp = document.querySelector<HTMLInputElement>('#priceEstimateBody .est-inputs input');
+  if(inp) inp.value = '';
+  refreshTotals();
 }
 export function setEstimateAdvance(v: string): void {
   const project = getCurrentProject();
@@ -193,7 +215,7 @@ export function setEstimateAdvance(v: string): void {
   const value = parseMoney(v);
   if(value > 0) project.advance = value; else delete project.advance;
   saveProjects();
-  renderPriceEstimate();
+  refreshTotals();
 }
 
 // --- «Ценовое урегулирование» ---
@@ -295,7 +317,7 @@ export function savePriceSetting(): void {
     let o = s as unknown as Record<string, unknown>;
     for(let i = 0; i < parts.length - 1; i++) o = o[parts[i]] as Record<string, unknown>;
     const last = parts[parts.length - 1];
-    o[last] = (last === 'currency') ? inp.value.trim() : (parseFloat(inp.value.replace(',', '.')) || 0);
+    o[last] = (last === 'currency') ? inp.value.trim() : Math.max(0, parseFloat(inp.value.replace(',', '.')) || 0);   // цена не бывает отрицательной
   });
   const wm = document.querySelector<HTMLInputElement>('#priceSettingBody input[name="wasteMode"]:checked');
   if(wm && isWasteMode(wm.value)) s.waste.mode = wm.value;

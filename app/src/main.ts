@@ -77,7 +77,7 @@ const handlers = {
   openPriceEstimate: priceScreens.openPriceEstimate, closePriceEstimate: priceScreens.closePriceEstimate,
   togglePriceDetail: priceScreens.togglePriceDetail, setPriceElementsOpen: priceScreens.setPriceElementsOpen,
   toggleEstimateWork: priceScreens.toggleEstimateWork, setEstimateDiscount: priceScreens.setEstimateDiscount,
-  toggleEstimateDiscountMode: priceScreens.toggleEstimateDiscountMode, setEstimateAdvance: priceScreens.setEstimateAdvance,
+  setEstimateDiscountMode: priceScreens.setEstimateDiscountMode, setEstimateAdvance: priceScreens.setEstimateAdvance,
   openPriceSetting: priceScreens.openPriceSetting, closePriceSetting: priceScreens.closePriceSetting, savePriceSetting: priceScreens.savePriceSetting,
   // резервная копия
   openExportPicker: backup.openExportPicker, closeExportPicker: backup.closeExportPicker, toggleExportSelect: backup.toggleExportSelect,
