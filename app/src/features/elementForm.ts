@@ -7,7 +7,8 @@ import { findColor } from '../data/colors.ts';
 import { GLASS_NEW_DEFAULT, elementGlassName, findGlass } from '../data/glass.ts';
 import { ensureRoot, renumberTree } from '../model/tree.ts';
 import { parseMm } from '../model/layout.ts';
-import { INVALID_ELEMENT_MSG, beginChange, finishChange, isElementValid } from '../model/history.ts';
+import { INVALID_ELEMENT_MSG, beginChange, finishChange, isElementValid, restoreSnapshot } from '../model/history.ts';
+import { setElementSize } from '../model/dims.ts';
 import { calcElement, fmtMoney, fmtNum, fmtSummaryMoney } from '../model/pricing.ts';
 import { getCurrentProject, saveProjects } from '../storage.ts';
 import { renderCanvas } from './projects.ts';
@@ -182,9 +183,12 @@ function applyFormSize(e: WinElement, type: ElementType, width: number, height: 
   }
   ensureRoot(e);                                       // проверка всё равно создаст дерево — до снимка, иначе он «изменится»
   const tok = beginChange(e);
-  // то же число — оставляем как было (после перетаскивания размера там строка «1500»): иначе пустой шаг «Отменить»
-  if(parseMm(e.width) !== width) e.width = width;
-  if(parseMm(e.height) !== height) e.height = height;
+  // как на схеме (setElementSize): меняется только крайняя ячейка, заданные размеры остальных сохраняются.
+  // То же число — не трогаем (после перетаскивания размера там строка «1500»): иначе пустой шаг «Отменить»
+  for(const [which, v] of [['width', width], ['height', height]] as const){
+    if(parseMm(e[which]) === v) continue;
+    if(!setElementSize(e, which, v)){ restoreSnapshot(e, tok.snap); return false; }   // тост уже показан
+  }
   return finishChange(e, tok);
 }
 

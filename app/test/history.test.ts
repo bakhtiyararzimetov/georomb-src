@@ -77,8 +77,7 @@ test('правка ширины в форме — обычный шаг исто
   assert.equal(e.root!.kind, 'branch');
 });
 
-test('правка ширины в форме сохраняет заданные размеры ячеек',
-  { todo: 'Важно: форма меняет width, а computeLayout пропорционально пересчитывает ВСЕ квоты (на экране элемента меняется только крайняя ячейка)' }, () => {
+test('правка ширины в форме меняет только крайнюю ячейку — как на схеме', () => {
   splitAsTool();
   e.root!.sizes = [600, 450, 450];
   S.editingElementId = e.id;
@@ -128,4 +127,19 @@ test('сводка отдельного подоконника — без стр
   const html = dom.el('summaryBody').innerHTML;
   for(const row of ['Цвет окна', 'Площадь стекла', 'Длина профилей', 'Площадь элемента']) assert.ok(!html.includes(row), row);
   assert.ok(html.includes('Подоконник'));
+});
+
+test('правка высоты в форме меняет только верхнюю ячейку — как на схеме (нижняя, обычно створка, сохраняется)', () => {
+  const tok = beginChange(e);
+  splitNode(ensureRoot(e), 'h', 2);
+  assert.equal(finishChange(e, tok), true);
+  e.root!.sizes = [700, 500];
+  S.editingElementId = e.id;
+  dom.el('editElemWidth').value = '1500';
+  dom.el('editElemHeight').value = '1300';
+  saveEditElement();
+  dom.el('editElemHeight').value = '1200';
+  assert.equal(Number(e.height), 1300);
+  assert.equal(Math.round(e.root!.sizes![1]), 500, 'нижняя ячейка: ' + e.root!.sizes![1]);
+  assert.equal(Math.round(e.root!.sizes![0]), 800);
 });
