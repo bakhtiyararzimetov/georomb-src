@@ -11,6 +11,7 @@
     "typecheck": "tsc -p app/tsconfig.json && tsc -p backend/tsconfig.json && tsc -p server/tsconfig.json",
     "cap:copy": "node --env-file-if-exists=.env scripts/copy-to-capacitor.ts",
     "license": "node backend/src/cli.ts",
+    "icons": "node scripts/make-icons.ts",
     "api-key": "node -e \"console.log('gr_' + require('node:crypto').randomBytes(24).toString('base64url'))\"",
     "server": "node --env-file-if-exists=.env --no-experimental-webstorage server/src/main.ts",
     "test": "node --no-experimental-webstorage --test server/test/ app/test/"
