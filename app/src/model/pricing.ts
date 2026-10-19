@@ -1,5 +1,5 @@
 // Расчёт стоимости (порт PriceSettingActivity + PriceEstimateActivity старого проекта).
-import { DEFAULT_QTY, DEFAULT_SILL_DEPTH, S } from '../state.ts';
+import { DEFAULT_QTY, DEFAULT_SILL_DEPTH, DEFAULT_UNIT_LENGTH, S } from '../state.ts';
 import { notifyDataChanged } from '../storage.ts';
 import type { Mat, PriceSettings, Project, Rect, SubLayout, TreeNode, WasteMode, WinElement } from '../types.ts';
 import { findColor, projectMat } from '../data/colors.ts';
@@ -343,7 +343,7 @@ export function profileCutWaste(project: Project, items: ElementCost[], mode: 'f
   });
   let m = 0, cost = 0, bars = 0;
   groups.forEach(gr => {
-    const L = (cs && cs.roleUnit[mat] && cs.roleUnit[mat][gr.role]) || (cs ? cs.unitLength[mat] : 6000);
+    const L = (cs && cs.roleUnit[mat] && cs.roleUnit[mat][gr.role]) || (cs ? cs.unitLength[mat] : DEFAULT_UNIT_LENGTH[mat]);
     const v = cutOptimize(gr.lens, L, C, [], 0).variants[0];
     if(!v) return;
     const mm = mode === 'full' ? v.totalMm - v.usedMm : v.wasteMm + v.kerfMm;

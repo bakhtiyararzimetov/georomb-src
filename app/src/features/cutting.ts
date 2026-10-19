@@ -1,5 +1,5 @@
 // Экран «Раскрой»: группы деталей проекта (роль × цвет), расчёт вариантов, списание со склада, PDF для цеха.
-import { DEFAULT_SILL_DEPTH, S } from '../state.ts';
+import { DEFAULT_SILL_DEPTH, S, DEFAULT_UNIT_LENGTH } from '../state.ts';
 import type { CuttingSettings, Mat, Project } from '../types.ts';
 import { $, $input, escapeHtml, showToast } from '../ui/dom.ts';
 import { elementColorHex, findColor, projectMat } from '../data/colors.ts';
@@ -48,8 +48,9 @@ function cutColorMap(v: CutVariant): Map<number, string> {
 
 // ===== Настройки раскроя =====
 const CUT_SETTINGS_KEY = 'iwd.cutting.v1';
-const CUT_DEFAULTS: CuttingSettings = { kerf:5, minRemnant:140, trimMax:80, unitLength:{ pvc:6000, alu:6000 }, roleUnit:{ pvc:{}, alu:{} }, showAlgorithms:false,
-                                       reinf:true, reinfOffset:40 };
+export { DEFAULT_UNIT_LENGTH };
+const CUT_DEFAULTS: CuttingSettings = { kerf:5, minRemnant:140, trimMax:80, unitLength:{ ...DEFAULT_UNIT_LENGTH }, roleUnit:{ pvc:{}, alu:{} }, showAlgorithms:false,
+                                       reinf:true, reinfOffset:40, unitV:2 };
 export function normalizeCuttingSettings(src: unknown): CuttingSettings {
   const s = (src && typeof src === 'object') ? src as Partial<CuttingSettings> : {};
   const d = CUT_DEFAULTS;
@@ -67,9 +68,12 @@ export function normalizeCuttingSettings(src: unknown): CuttingSettings {
     minRemnant: num(s.minRemnant, n => n >= 0, d.minRemnant),
     trimMax:    num(s.trimMax,    n => n >= 0, d.trimMax),
     unitLength: {
-      pvc: num(s.unitLength && s.unitLength.pvc, n => n > 0, d.unitLength.pvc),
+      // до 1.3 по умолчанию у ПВХ было 6000: такие настройки один раз переводятся на 6500, дальше выбор сохраняется
+      pvc: (s.unitV !== 2 && Number(s.unitLength && s.unitLength.pvc) === 6000) ? DEFAULT_UNIT_LENGTH.pvc
+           : num(s.unitLength && s.unitLength.pvc, n => n > 0, d.unitLength.pvc),
       alu: num(s.unitLength && s.unitLength.alu, n => n > 0, d.unitLength.alu)
     },
+    unitV: 2,
     roleUnit,
     showAlgorithms: !!s.showAlgorithms,
     reinf:       s.reinf === undefined ? d.reinf : !!s.reinf,

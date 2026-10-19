@@ -62,3 +62,23 @@ test('длины деталей — без дробной части, как в 
   const frame = extractCuttingGroups(p).find(g => g.role === 'frame')!;
   assert.ok(frame.pieces.some(pc => pc.lengthMm === 1506), JSON.stringify(frame.pieces));
 });
+
+test('хлыст по умолчанию: ПВХ 6500, алюминий 6000', async () => {
+  const { normalizeCuttingSettings } = await import('../src/features/cutting.ts');
+  const d = normalizeCuttingSettings(null);
+  assert.deepEqual([d.unitLength.pvc, d.unitLength.alu], [6500, 6000]);
+});
+
+test('старые настройки (до 1.3): ПВХ 6000 → 6500 один раз, выбор после этого сохраняется', async () => {
+  const { normalizeCuttingSettings } = await import('../src/features/cutting.ts');
+  const old = normalizeCuttingSettings({ kerf: 5, unitLength: { pvc: 6000, alu: 6000 } });
+  assert.deepEqual([old.unitLength.pvc, old.unitLength.alu], [6500, 6000]);
+  const chosen = normalizeCuttingSettings({ ...old, unitLength: { pvc: 6000, alu: 6000 } });   // пользователь снова выбрал 6000
+  assert.equal(chosen.unitLength.pvc, 6000);
+  assert.equal(normalizeCuttingSettings({ unitLength: { pvc: 7000, alu: 6000 } }).unitLength.pvc, 7000, 'своя длина не трогается');
+});
+
+test('смета отходов без настроек раскроя — тоже 6500 для ПВХ', async () => {
+  const { DEFAULT_UNIT_LENGTH } = await import('../src/features/cutting.ts');
+  assert.deepEqual(DEFAULT_UNIT_LENGTH, { pvc: 6500, alu: 6000 });
+});

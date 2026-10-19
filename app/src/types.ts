@@ -123,6 +123,7 @@ export interface CuttingSettings {
   showAlgorithms: boolean;
   reinf: boolean;              // раскраивать армирование (только ПВХ)
   reinfOffset: number;         // армирование короче рамы и створки на столько мм с каждой стороны
+  unitV?: number;              // 2 — длины хлыстов уже с умолчаниями 1.3 (ПВХ 6500)
 }
 
 /** Настройки раскроя стекла на листах. */

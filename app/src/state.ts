@@ -28,3 +28,5 @@ export const S = {
 export const DEFAULT_W = 1500, DEFAULT_H = 1200, DEFAULT_QTY = 1;
 /** Глубина полки отдельного подоконника, если её нет в данных (смета, раскрой, 3D), мм. */
 export const DEFAULT_SILL_DEPTH = 200;
+/** Хлыст по умолчанию, мм: пластик — 6500, алюминий — 6000. */
+export const DEFAULT_UNIT_LENGTH = { pvc: 6500, alu: 6000 } as const;
