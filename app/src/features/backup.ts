@@ -33,7 +33,8 @@ function buildBackup(ids?: number[]) {
            ...(Array.isArray(ids) ? {} : { licenseCode:storedLicenseCode() }) };
 }
 
-// ===== Автокопия в «Документы/GeoRomb» (переживает удаление приложения) =====
+// ===== Автокопия в «Documents/GeoRomb» (переживает удаление приложения) =====
+export const BACKUP_PATH_HINT = 'Documents → ' + BACKUP_DIR;
 const BACKUP_TAG_KEY = 'iwd.backupTag.v1', BACKUP_DECLINED_KEY = 'iwd.backupDeclined.v1';
 const declinedFlag = {
   get: (): boolean => { try{ return localStorage.getItem(BACKUP_DECLINED_KEY) === '1'; }catch{ return false; } },
@@ -63,10 +64,16 @@ export function initAutoBackup(): void {
   onDataChanged(ab.schedule);
   onUnlock(() => { void ab.flush(); });
   if(plugins.App) plugins.App.addListener('pause', () => { void ab.flush(); });
+  // В файловых менеджерах папка называется «Documents» (по-английски даже на русском телефоне)
   const sub = document.getElementById('exportRowSub');
-  if(sub) sub.textContent = 'Сохранить в файл. Автокопия: Документы/' + BACKUP_DIR;
+  if(sub) sub.textContent = 'Сохранить в файл. Автокопия: папка ' + BACKUP_PATH_HINT;
   const isub = document.getElementById('importRowSub');
-  if(isub) isub.textContent = 'Из файла или автокопии в Документы/' + BACKUP_DIR;
+  if(isub) isub.textContent = 'Из файла или автокопии: ' + BACKUP_PATH_HINT + ', самый новый файл';
+  const hint = document.getElementById('licenseRestoreHint');
+  if(hint){
+    hint.textContent = 'Переустановили приложение? Копия проектов лежит в памяти телефона: ' + BACKUP_PATH_HINT + ' — выберите самый новый файл.';
+    hint.hidden = false;
+  }
   ab.schedule();                                         // первая копия сразу после запуска
 }
 async function exportProjects(ids?: number[]): Promise<void> {

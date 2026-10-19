@@ -701,6 +701,8 @@
   .license-links{ display:flex; gap:10px; }
   /* компактное окно (отзыв лицензии): небольшая карточка поверх затемнённого приложения */
   .license-restore{ margin-top:8px; background:transparent; border-color:transparent; color:var(--muted, #6b7280); }
+  .license-restore-hint{ margin:0; text-align:center; font-size:var(--fs-sm, 13px); color:var(--muted, #6b7280); line-height:1.4; }
+  .license-lock.compact .license-restore-hint{ display:none; }
   .license-lock.compact{ background:rgba(0,0,0,.45); }
   .license-lock.compact .license-box{ max-width:320px; background:var(--bg); padding:20px; border-radius:var(--radius-lg); box-shadow:0 8px 32px rgba(0,0,0,.3); }
   .license-lock.compact .license-box h2{ order:-2; font-size:var(--fs-xl); }
