@@ -2,7 +2,7 @@
 // поэтому старые бэкапы импортируются, а новые открываются старой версией приложения.
 // Импортируемому файлу не доверяем: каждое поле проверяется и пересобирается.
 import { S } from '../state.ts';
-import type { Divider, OpeningType, PriceSettings, Project, TreeNode, WinElement, Edge } from '../types.ts';
+import type { Divider, OpeningType, PriceSettings, Project, TreeNode, WinElement, Edge, WorkKey } from '../types.ts';
 import { $, $input, escapeHtml, showToast } from '../ui/dom.ts';
 import { GLASS_TYPES } from '../data/glass.ts';
 import { SLIDING_TEMPLATES } from '../data/profiles.ts';
@@ -207,12 +207,38 @@ function cleanPrices(src: unknown): PriceSettings {
   out.tax = Math.min(100, n(s.tax));
   out.currency = safeText(s.currency, 8, PRICE_DEFAULTS.currency);
   out.decimals = Math.min(4, Math.floor(n(s.decimals)));
+  if(s.glassByType && typeof s.glassByType === 'object')
+    GLASS_TYPES.forEach(g => { const v = n((s.glassByType as Record<string, unknown>)[g.code]); if(v > 0) out.glassByType[g.code] = v; });
+  out.bead = n(s.bead);
+  out.seal = n(s.seal);
+  if(s.colorPct && typeof s.colorPct === 'object'){
+    out.colorPct.colored = Math.min(100, n(s.colorPct.colored));
+    out.colorPct.laminated = Math.min(100, n(s.colorPct.laminated));
+  }
+  if(s.works && typeof s.works === 'object') WORK_KEYS.forEach(k => { out.works[k] = n((s.works as Record<string, unknown>)[k]); });
   return out;
+}
+const WORK_KEYS: WorkKey[] = ['install', 'dismantle', 'slopes', 'delivery'];
+// смета проекта: скидка, аванс, включённые работы — только известные поля и разумные значения
+function cleanEstimateFields(src: Raw, project: Project): void {
+  const d = src.discount as Raw | undefined;
+  if(d && typeof d === 'object' && (d.mode === 'sum' || d.mode === 'pct')){
+    const v = safeNum(d.value, 0, d.mode === 'pct' ? 100 : 1e12);
+    if(v !== null) project.discount = { mode: d.mode, value: v };
+  }
+  const adv = safeNum(src.advance, 0, 1e12);
+  if(adv !== null && src.advance !== undefined && src.advance !== null) project.advance = adv;
+  const w = src.works as Raw | undefined;
+  if(w && typeof w === 'object'){
+    const on: Partial<Record<WorkKey, boolean>> = {};
+    WORK_KEYS.forEach(k => { if(w[k] === true) on[k] = true; });
+    if(Object.keys(on).length) project.works = on;
+  }
 }
 function pricesAreUntouched(): boolean {
   const s = S.prices, zero = (o: object) => Object.values(o).every(v => !v);
   return zero(s.profile.pvc) && zero(s.profile.alu) && zero(s.accessory) && zero(s.panel) && !s.glass && !s.tax
-      && !s.reinf && !s.net;
+      && !s.reinf && !s.net && zero(s.glassByType) && !s.bead && !s.seal && zero(s.colorPct) && zero(s.works);
 }
 
 export function importProjects(): void { $input('importFile').click(); }
@@ -249,6 +275,7 @@ export async function importProjectsFromFile(input: HTMLInputElement): Promise<v
       if(dc) project.defaultColor = dc;
       const dg = safeText(src.defaultGlass, 40);
       if(dg && GLASS_TYPES.some(g => g.code === dg)) project.defaultGlass = dg;
+      cleanEstimateFields(src, project);
       (Array.isArray(src.elements) ? src.elements.slice(0, IMPORT_MAX_ELEMENTS) : []).forEach(e => {
         const el = cleanElement(e, project);
         if(el) project.elements.push(el); else skipped++;

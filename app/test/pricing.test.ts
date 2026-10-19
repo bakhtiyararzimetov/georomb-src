@@ -105,3 +105,90 @@ test('pieceCount: одно правило количества для раскр
   const { pieceCount } = await import('../src/model/pricing.ts');
   assert.deepEqual([0, 0.4, 1, 2.5, 3, '2', '', 'x', -1].map(pieceCount), [0, 1, 1, 3, 3, 2, 1, 1, 0]);
 });
+
+// ===== доп. статьи сметы: штапик, уплотнитель, стекло по видам, доплата за цвет, работы, скидка и аванс =====
+const line = (r: ReturnType<typeof calcProject>, name: string) => r.lines.find(l => l.name === name);
+
+test('штапик и уплотнитель: строки по длинам из геометрии; без цены — строк нет (старые сметы прежние)', () => {
+  S.prices = prices();
+  const e = el({});
+  assert.equal(line(calcProject(project([e])), 'Штапик'), undefined);
+  S.prices.bead = 100; S.prices.seal = 50;
+  const g = elementGeometry(e, 'pvc');
+  const beadM = g.pieces.bead.reduce((a, x) => a + x, 0) / 1000;
+  const sealM = (2 * g.glasses.reduce((a, x) => a + 2 * (x.w + x.h), 0)
+    + [...g.pieces.wSash, ...g.pieces.dSash, ...g.pieces.slidSash].reduce((a, x) => a + x, 0)) / 1000;
+  const r = calcProject(project([e]));
+  assert.equal(line(r, 'Штапик')!.qty, Math.round(beadM * 10) / 10);
+  assert.equal(line(r, 'Уплотнитель')!.qty, Math.round(sealM * 10) / 10);
+  assert.ok(beadM > 0 && sealM > 0);
+  assert.ok(r.items[0].roundedTotal! >= line(r, 'Штапик')!.sum + line(r, 'Уплотнитель')!.sum, 'в цене элемента тоже');
+});
+
+test('стекло по видам: своя цена за м²; не задана — общая цена «Стекло»', () => {
+  S.prices = prices();                                 // glass = 500
+  S.prices.glassByType = { bronze: 900 };
+  const r = calcProject(project([el({ id: 1, glass: 'bronze' }), el({ id: 2, glass: 'clear' })]));
+  const area = elementGeometry(el({}), 'pvc').glassArea;
+  assert.equal(line(r, 'Стекло: Бронзовый')!.price, 900);
+  assert.equal(line(r, 'Стекло: Прозрачный')!.price, 500);
+  assert.equal(line(r, 'Стекло: Бронзовый')!.qty, Math.round(area * 10) / 10);
+  assert.equal(line(r, 'Стекло'), undefined);
+  S.prices.glassByType = {};
+  assert.ok(line(calcProject(project([el({ glass: 'bronze' })])), 'Стекло'), 'без цен по видам — одна строка, как раньше');
+});
+
+test('доплата за цвет: цветной и ламинация — % от профиля отдельной строкой; белый — без доплаты', () => {
+  S.prices = prices();
+  S.prices.colorPct = { colored: 10, laminated: 30 };
+  const profileSum = (r: ReturnType<typeof calcProject>) => ['Рама'].reduce((a, n) => a + (line(r, n)?.sum || 0), 0);
+  const white = calcProject(project([el({ color: 'ral9016' })]));
+  assert.ok(!white.lines.some(l => l.name.startsWith('Доплата')));
+  const choc = calcProject(project([el({ color: 'ral8017' })]));
+  assert.equal(line(choc, 'Доплата: цветной профиль, 10%')!.sum, Math.round(profileSum(choc) * 0.1));
+  const oak = calcProject(project([el({ color: 'oak_golden' })]));
+  assert.equal(line(oak, 'Доплата: ламинация, 30%')!.sum, Math.round(profileSum(oak) * 0.3));
+});
+
+test('работы: включаются в проекте; монтаж — м² окон, откосы — 2·высота + ширина, доставка — 1 раз', () => {
+  S.prices = prices();
+  S.prices.works = { install: 2000, dismantle: 500, slopes: 1000, delivery: 5000 };
+  const pr = project([el({ qty: 2 }), el({ id: 2, type: 'sill', width: 1500, height: 200 })]);
+  assert.ok(!calcProject(pr).lines.some(l => l.name === 'Монтаж'), 'не включены — строк нет');
+  pr.works = { install: true, slopes: true, delivery: true };
+  const r = calcProject(pr);
+  assert.equal(line(r, 'Монтаж')!.qty, 3.6);            // 1,5 × 1,2 × 2 шт
+  assert.equal(line(r, 'Откосы')!.qty, 7.8);            // (2 × 1,2 + 1,5) × 2 шт; подоконник не считается
+  assert.equal(line(r, 'Доставка')!.qty, 1);
+  assert.equal(line(r, 'Доставка')!.sum, 5000);
+  assert.equal(line(r, 'Демонтаж'), undefined);
+  const elemSum = r.items.reduce((a, c) => a + (c.roundedTotal || 0), 0);
+  assert.ok(elemSum < r.subtotal, 'работы — только в смете проекта, не в цене элемента');
+});
+
+test('скидка и аванс: Сумма → Скидка → Налог → Итого → Аванс → Остаток', () => {
+  S.prices = prices();                                 // налог 12%
+  const pr = project([el({})]);
+  const base = calcProject(pr);
+  pr.discount = { mode: 'pct', value: 10 };
+  pr.advance = 1000;
+  const r = calcProject(pr);
+  assert.equal(r.subtotal, base.subtotal);
+  assert.equal(r.discount, Math.round(base.subtotal * 0.1));
+  assert.equal(r.tax, Math.round((base.subtotal - r.discount) * 0.12));
+  assert.equal(r.grand, base.subtotal - r.discount + r.tax);
+  assert.equal(r.advance, 1000);
+  assert.equal(r.due, r.grand - 1000);
+  pr.discount = { mode: 'sum', value: 1e12 };
+  pr.advance = 1e12;
+  const big = calcProject(pr);
+  assert.deepEqual([big.grand, big.due], [0, 0], 'скидка и аванс не уводят в минус');
+});
+
+test('без новых полей смета такая же, как раньше (итог без скидки = сумма + налог)', () => {
+  S.prices = prices();
+  const r = calcProject(project([el({})]));
+  assert.equal(r.discount, 0);
+  assert.equal(r.due, r.grand);
+  assert.equal(r.grand, r.subtotal + r.tax);
+});

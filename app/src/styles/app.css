@@ -1438,6 +1438,23 @@
   .waste-opt b{ display:block; font-weight:600; font-size:var(--fs-base); }
   .waste-opt small{ display:block; color:var(--ink-soft); font-size:var(--fs-xs); margin-top:2px; }
   .price-note{ font-size:var(--fs-xs); color:var(--ink-soft); margin:10px 0 4px; }
+  .works-label{ margin-top:22px; }
+  .price-hint-small{ font-size:var(--fs-xs); color:var(--ink-soft); margin:2px 0 6px; line-height:1.35; }
+  .works-list{ border:1px solid var(--line); border-radius:var(--radius-md); overflow:hidden; margin-bottom:6px; }
+  .works-opt{ display:flex; align-items:center; gap:12px; padding:12px 14px; border-bottom:1px solid var(--line); font-size:var(--fs-base); }
+  .works-opt:last-child{ border-bottom:none; }
+  .works-opt input{ width:20px; height:20px; accent-color:var(--header); flex-shrink:0; }
+  .works-opt span{ flex:1; }
+  .works-opt small{ color:var(--ink-soft); font-size:var(--fs-xs); }
+  .price-total .est-input-row{ align-items:center; }
+  .est-input{ display:flex; align-items:center; gap:6px; }
+  .est-input input{ width:110px; text-align:right; border:none; border-bottom:1px solid var(--line); background:none; outline:none;
+    color:var(--ink); font-size:var(--fs-sm); padding:3px 2px; }
+  .est-input input:focus{ border-bottom:2px solid var(--header); padding-bottom:2px; }
+  .est-unit-btn{ min-width:44px; padding:4px 8px; border:1px solid var(--line); border-radius:var(--radius-sm, 8px); background:var(--bg-soft, #eef3fb);
+    color:var(--header); font-size:var(--fs-xs); font-weight:600; }
+  .est-unit-btn.static{ background:none; border-color:transparent; color:var(--ink-soft); font-weight:400; }
+  .price-total .due span:last-child{ color:var(--header); }
 
   /* ===== Язык и состав PDF ===== */
   .pdf-opt-langs{ display:flex; flex-direction:column; gap:10px; margin-bottom:14px; }

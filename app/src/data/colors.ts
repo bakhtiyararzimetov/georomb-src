@@ -14,13 +14,13 @@ export const COLOR_OPTIONS: Record<Mat, ColorOption[]> = {
     { code:'ral7021', name:'Чёрно-серый (RAL 7021)',   hex:'#23282B', ral:'RAL 7021' },
     { code:'ral1011', name:'Бежево-коричневый (RAL 1011)', hex:'#AF8A54', ral:'RAL 1011' },
     { code:'ral3005', name:'Винно-красный (RAL 3005)', hex:'#5E2028', ral:'RAL 3005' },
-    { code:'oak_golden',  name:'Золотой дуб',  hex:'#B08D57', ral:'Renolit S30.30.11.0031 (≈RAL 8011)' },
-    { code:'oak_rustic',  name:'Дуб рустик',   hex:'#5B4433', ral:'Renolit S30.30.91.0023 (≈RAL 8028)' },
-    { code:'mahogany',    name:'Махагон',      hex:'#4C2F26', ral:'Renolit S30.30.11.0019 (≈RAL 8016)' },
-    { code:'walnut',      name:'Орех',         hex:'#59351F', ral:'Renolit S30.30.11.0033 (≈RAL 8007)' },
-    { code:'wenge',       name:'Венге',        hex:'#2E2420', ral:'требует уточнения артикула' },
-    { code:'teak',        name:'Тик',          hex:'#8A6E4B', ral:'требует уточнения артикула' },
-    { code:'ash',         name:'Ясень',        hex:'#C9BFA8', ral:'требует уточнения артикула' }
+    { code:'oak_golden',  name:'Золотой дуб',  hex:'#B08D57', ral:'Renolit S30.30.11.0031 (≈RAL 8011)', laminate:true },
+    { code:'oak_rustic',  name:'Дуб рустик',   hex:'#5B4433', ral:'Renolit S30.30.91.0023 (≈RAL 8028)', laminate:true },
+    { code:'mahogany',    name:'Махагон',      hex:'#4C2F26', ral:'Renolit S30.30.11.0019 (≈RAL 8016)', laminate:true },
+    { code:'walnut',      name:'Орех',         hex:'#59351F', ral:'Renolit S30.30.11.0033 (≈RAL 8007)', laminate:true },
+    { code:'wenge',       name:'Венге',        hex:'#2E2420', ral:'требует уточнения артикула', laminate:true },
+    { code:'teak',        name:'Тик',          hex:'#8A6E4B', ral:'требует уточнения артикула', laminate:true },
+    { code:'ash',         name:'Ясень',        hex:'#C9BFA8', ral:'требует уточнения артикула', laminate:true }
   ],
   // Алюминий: порошковая краска (RAL) и анодирование EURAS. У анодирования HEX официально нет —
   // previewHex только ориентир для схемы/кружка в интерфейсе.

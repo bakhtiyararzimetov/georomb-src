@@ -117,3 +117,28 @@ test('импорт: у отдельного подоконника нет фла
   await importProjectsFromFile(fileInput(backup([proj([el({ type: 'sill', width: 1500, height: 200, sill: true, sillLen: 1.6, sillWidth: 20 })])])));
   assert.ok(!S.projects[0].elements[0].sill);
 });
+
+test('импорт: скидка, аванс и работы проекта сохраняются, мусор отбрасывается', async () => {
+  await importProjectsFromFile(fileInput(backup([
+    proj([], { name: 'А', discount: { mode: 'pct', value: 10 }, advance: 5000, works: { install: true, slopes: true, delivery: false } } as never),
+    proj([], { name: 'Б', number: 2, discount: { mode: 'x', value: -5 }, advance: 'abc', works: { install: 'yes', hack: true } } as never)
+  ])));
+  const a = S.projects.find(p => p.name === 'А')!, b = S.projects.find(p => p.name === 'Б')!;
+  assert.deepEqual(a.discount, { mode: 'pct', value: 10 });
+  assert.equal(a.advance, 5000);
+  assert.deepEqual(a.works, { install: true, slopes: true });
+  assert.equal(b.discount, undefined);
+  assert.equal(b.advance, undefined);
+  assert.equal(b.works, undefined);
+});
+
+test('импорт цен: стекло по видам, штапик, уплотнитель, доплата за цвет и работы', async () => {
+  S.prices = clonePriceDefaults();
+  await importProjectsFromFile(fileInput(backup([proj([])], { priceSettings: {
+    glass: 500, glassByType: { bronze: 900, hack: 1, grey: -3 }, bead: 120, seal: 'x',
+    colorPct: { colored: 15, laminated: 500 }, works: { install: 2000, delivery: 7000, other: 1 } } })));
+  assert.deepEqual(S.prices.glassByType, { bronze: 900 });
+  assert.deepEqual([S.prices.bead, S.prices.seal], [120, 0]);
+  assert.deepEqual(S.prices.colorPct, { colored: 15, laminated: 100 });
+  assert.deepEqual(S.prices.works, { install: 2000, dismantle: 0, slopes: 0, delivery: 7000 });
+});

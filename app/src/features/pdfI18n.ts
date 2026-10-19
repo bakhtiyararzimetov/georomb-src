@@ -55,6 +55,9 @@ const DICT = {
   subtotal:        ['Всего', 'Jami', 'Бардыгы'],
   tax:             ['Налог', 'Soliq', 'Салык'],
   grand:           ['Итого', 'Umumiy', 'Жыйынтык'],
+  discount:        ['Скидка', 'Chegirma', 'Арзандатуу'],
+  advance:         ['Аванс', 'Avans', 'Аванс'],
+  due:             ['Остаток к оплате', 'Toʻlov qoldigʻi', 'Төлөнө турган калдык'],
   // раскрой профиля
   cutHeader:       ['Раскрой', 'Kesish', 'Кесүү'],
   cutTitle:        ['Раскрой профиля', 'Profil kesish sxemasi', 'Профилди кесүү схемасы'],
@@ -104,7 +107,10 @@ const LINE: Record<string, [string, string, string]> = {
   'Армирование':['Армирование', 'Metall (armatura)', 'Металл (арматура)'],
   'Поворот':['Поворот', 'Buriladigan', 'Бурулма'], 'Наклон и поворот':['Наклон и поворот', 'Burilib-qiya', 'Бурулуп-жантайма'],
   'Наклон':['Наклон', 'Qiya', 'Жантайма'], 'Дверь':['Дверь', 'Eshik', 'Эшик'], 'Раздвижной':['Раздвижной', 'Surilma', 'Жылма'],
-  'Стекло':['Стекло', 'Oyna', 'Айнек'], 'Панель':['Панель', 'Panel', 'Панель'], 'Москитная сетка':['Москитная сетка', 'Chivin toʻri', 'Чиркей тору']
+  'Стекло':['Стекло', 'Oyna', 'Айнек'],
+  'Штапик':['Штапик', 'Shtapik', 'Штапик'], 'Уплотнитель':['Уплотнитель', 'Zichlagich (rezina)', 'Тыгыздагыч (резина)'],
+  'Монтаж':['Монтаж', 'Oʻrnatish', 'Орнотуу'], 'Демонтаж':['Демонтаж', 'Demontaj', 'Демонтаж'],
+  'Откосы':['Откосы', 'Otkoslar', 'Откостор'], 'Доставка':['Доставка', 'Yetkazib berish', 'Жеткирүү'], 'Панель':['Панель', 'Panel', 'Панель'], 'Москитная сетка':['Москитная сетка', 'Chivin toʻri', 'Чиркей тору']
 };
 const IDX: Record<PdfLang, number> = { ru:0, uz:1, ky:2 };
 
@@ -130,8 +136,13 @@ export function pdfLineName(name: string): string {
   if(LINE[name]) return LINE[name][IDX[opts.lang]];
   const sill = /^Подоконник, (\d+) см$/.exec(name);
   if(sill) return pdfT('sill') + ', ' + sill[1] + ' ' + pdfT('cm');
+  const uz = opts.lang === 'uz';
+  // «Стекло: Бронзовый» — переводится слово «Стекло», название стекла остаётся
+  if(name.startsWith('Стекло: ')) return LINE['Стекло'][IDX[opts.lang]] + name.slice('Стекло'.length);
+  const extra = /^Доплата: (цветной профиль|ламинация), (.+)$/.exec(name);
+  if(extra) return (uz ? 'Qoʻshimcha: ' : 'Кошумча: ')
+    + (extra[1] === 'ламинация' ? (uz ? 'laminatsiya' : 'ламинация') : (uz ? 'rangli profil' : 'түстүү профиль')) + ', ' + extra[2];
   if(name.startsWith('Отходы профиля')){
-    const uz = opts.lang === 'uz';
     return (uz ? 'Profil chiqindisi' : 'Профиль калдыгы') + name.slice('Отходы профиля'.length)
       .replace('(по полной длине)', uz ? '(toʻliq uzunlik boʻyicha)' : '(толук узундугу боюнча)')
       .replace('(по мин. размерам)', uz ? '(min. oʻlchamlar boʻyicha)' : '(мин. өлчөмдөр боюнча)');

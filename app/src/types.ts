@@ -59,7 +59,14 @@ export interface Project {
   elements: WinElement[];
   defaultColor?: string;
   defaultGlass?: string;
+  // смета проекта (необязательные — у старых проектов их нет)
+  works?: Partial<Record<WorkKey, boolean>>;     // какие работы включить в смету
+  discount?: { mode: 'sum' | 'pct'; value: number };
+  advance?: number;                              // аванс (предоплата), в валюте сметы
 }
+
+/** Работы и доставка: монтаж/демонтаж — за м² окон, откосы — за метр (2 × высота + ширина), доставка — за заказ. */
+export type WorkKey = 'install' | 'dismantle' | 'slopes' | 'delivery';
 
 export interface Point { x: number; y: number; }
 export type Quad = Point[];
@@ -89,6 +96,7 @@ export interface Layout extends SubLayout {
 export interface ColorOption {
   code: string; name: string; hex: string | null; previewHex?: string; ral: string;
   metallic?: boolean; anodized?: boolean;
+  laminate?: boolean;          // плёнка под дерево (Renolit) — доплата «Ламинация» в смете
 }
 export interface GlassType { code: string; name: string; tint: string; lt: number; desc: string; matte?: boolean; }
 
@@ -112,6 +120,11 @@ export interface PriceSettings {
   tax: number;
   currency: string;
   decimals: number;
+  glassByType: Record<string, number>;   // цена за м² по виду стекла (код GLASS_TYPES); 0 — как glass
+  bead: number;                // штапик, за метр
+  seal: number;                // уплотнитель, за метр
+  colorPct: { colored: number; laminated: number };   // доплата к профилю, %: цветной / ламинация (белый — без доплаты)
+  works: Record<WorkKey, number>;        // цены работ: монтаж, демонтаж (за м²), откосы (за м), доставка (за заказ)
 }
 
 export interface Remnant { id: number; material: Mat; role: string; color: string; lengthMm: number; qty: number; }

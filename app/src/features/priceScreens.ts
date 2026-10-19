@@ -3,9 +3,19 @@ import { S } from '../state.ts';
 import type { Mat, PriceSettings } from '../types.ts';
 import { $, escapeAttr, escapeHtml } from '../ui/dom.ts';
 import {
-  ACC_PARTS, PROFILE_PARTS, SILL_WIDTHS, WASTE_MODES, calcProject, fmtMoney, fmtNum, isWasteMode, persistPriceSettings
+  ACC_PARTS, PROFILE_PARTS, SILL_WIDTHS, WASTE_MODES, calcProject, fmtMoney, fmtNum, glassShortName, isWasteMode, persistPriceSettings
 } from '../model/pricing.ts';
-import { getCurrentProject } from '../storage.ts';
+import { GLASS_TYPES } from '../data/glass.ts';
+import type { WorkKey } from '../types.ts';
+import { getCurrentProject, saveProjects } from '../storage.ts';
+
+// работы и доставка: ключ, название, единица в смете, короткая единица для поля цены
+export const WORKS: [WorkKey, string, string, string][] = [
+  ['install',   'Монтаж',   'за м² окон', 'm²'],
+  ['dismantle', 'Демонтаж', 'за м² окон', 'm²'],
+  ['slopes',    'Откосы',   'за метр',    'm'],
+  ['delivery',  'Доставка', 'за заказ',   'заказ']
+];
 
 let priceOpenRows: Record<number, boolean> = {};
 let priceElementsOpen = false;   // раскрыт ли блок «По элементам»
@@ -42,13 +52,16 @@ export function renderPriceEstimate(): void {
       ? `<div><span>Москитная сетка, ${c.g.nets.length} шт · ${fmtNum(c.g.netArea)} м²</span><b>${fmtMoney(c.netCost)}</b></div>` : '';
     const reinfLine = (c.reinfCost > 0)
       ? `<div><span>Армирование, ${fmtNum(c.g.reinfLen)} м</span><b>${fmtMoney(c.reinfCost)}</b></div>` : '';
+    const extraLines = (c.beadCost > 0 ? `<div><span>Штапик, ${fmtNum(c.g.beadLen, 1)} м</span><b>${fmtMoney(c.beadCost)}</b></div>` : '')
+      + (c.sealCost > 0 ? `<div><span>Уплотнитель, ${fmtNum(c.g.sealLen, 1)} м</span><b>${fmtMoney(c.sealCost)}</b></div>` : '')
+      + (c.colorCost > 0 ? `<div><span>Доплата за ${c.color === 'laminated' ? 'ламинацию' : 'цвет'}</span><b>${fmtMoney(c.colorCost)}</b></div>` : '');
     const detail = priceOpenRows[i] ? `
         <div class="price-detail">
           ${e.type === 'sill' ? '' : `
           <div><span>Профиль, ${fmtNum(c.g.profileLen)} м</span><b>${fmtMoney(c.profileCost)}</b></div>
           ${reinfLine}
           <div><span>Стекло, ${fmtNum(c.g.glassArea)} м²</span><b>${fmtMoney(c.glassCost)}</b></div>
-          ${panelLine}${netLine}
+          ${panelLine}${netLine}${extraLines}
           <div><span>Аксессуары, створок: ${c.g.sashCount}</span><b>${fmtMoney(c.accCost)}</b></div>`}
           ${sillLine}
           <div><span>Цена за 1 шт</span><b>${fmtMoney(c.unit)}</b></div>
@@ -87,10 +100,27 @@ export function renderPriceEstimate(): void {
         ${estRows}
       </div>
       ${res.waste ? `<div class="price-note">Отходы по раскрою: ${res.waste.bars} хлыст(ов), ${fmtNum(res.waste.m, 1)} м в цене. Пропил ${S.cutting.kerf} мм, мин. обрезок ${S.cutting.minRemnant} мм — из настроек раскроя.</div>` : ''}
+      ${worksBlock(project.works || {})}
       <div class="price-total">
         <div><span>Всего</span><span>${fmtMoney(res.subtotal)}</span></div>
+        <div class="est-input-row">
+          <span>Скидка</span>
+          <span class="est-input">
+            <input type="text" inputmode="decimal" placeholder="0" value="${project.discount && project.discount.value ? escapeAttr(project.discount.value) : ''}" onchange="setEstimateDiscount(this.value)">
+            <button class="est-unit-btn" onclick="toggleEstimateDiscountMode()">${project.discount && project.discount.mode === 'pct' ? '%' : escapeHtml(S.prices.currency)}</button>
+          </span>
+        </div>
+        ${res.discount > 0 ? `<div><span class="muted">После скидки</span><span>${fmtMoney(res.subtotal - res.discount)}</span></div>` : ''}
         <div><span class="muted">Налог (${fmtNum(res.taxRate, 0)} %)</span><span>${fmtMoney(res.tax)}</span></div>
         <div class="grand"><span>Итого (${escapeHtml(S.prices.currency)})</span><span>${fmtMoney(res.grand)}</span></div>
+        <div class="est-input-row">
+          <span>Аванс</span>
+          <span class="est-input">
+            <input type="text" inputmode="decimal" placeholder="0" value="${project.advance ? escapeAttr(project.advance) : ''}" onchange="setEstimateAdvance(this.value)">
+            <span class="est-unit-btn static">${escapeHtml(S.prices.currency)}</span>
+          </span>
+        </div>
+        ${res.advance > 0 ? `<div class="grand due"><span>Остаток к оплате</span><span>${fmtMoney(res.due)}</span></div>` : ''}
       </div>
 
       <details class="est-elements"${priceElementsOpen ? ' open' : ''} ontoggle="setPriceElementsOpen(this.open)">
@@ -115,6 +145,57 @@ export function renderPriceEstimate(): void {
       </details>`;
 }
 
+// работы: переключатели только для тех, у кого задана цена; нет ни одной цены — подсказка, где их задать
+function worksBlock(on: Partial<Record<WorkKey, boolean>>): string {
+  const priced = WORKS.filter(([k]) => S.prices.works[k] > 0);
+  if(!priced.length) return `<div class="price-note">Монтаж, демонтаж, откосы и доставку можно добавить в смету — задайте их цены в «Ценах» (⚙ вверху).</div>`;
+  return `
+      <div class="section-label works-label">Работы и доставка</div>
+      <div class="works-list">
+        ${priced.map(([k, label, unit]) => `
+        <label class="works-opt">
+          <input type="checkbox"${on[k] ? ' checked' : ''} onchange="toggleEstimateWork('${k}', this.checked)">
+          <span>${label}</span><small>${fmtMoney(S.prices.works[k])} ${unit}</small>
+        </label>`).join('')}
+      </div>`;
+}
+const parseMoney = (v: string): number => { const n = parseFloat(String(v).replace(/\s/g, '').replace(',', '.')); return isFinite(n) && n > 0 ? n : 0; };
+export function toggleEstimateWork(key: WorkKey, on: boolean): void {
+  const project = getCurrentProject();
+  if(!project || !WORKS.some(([k]) => k === key)) return;
+  const w = { ...(project.works || {}) };
+  if(on) w[key] = true; else delete w[key];
+  if(Object.keys(w).length) project.works = w; else delete project.works;
+  saveProjects();
+  renderPriceEstimate();
+}
+export function setEstimateDiscount(v: string): void {
+  const project = getCurrentProject();
+  if(!project) return;
+  const mode = project.discount ? project.discount.mode : 'sum';
+  const value = mode === 'pct' ? Math.min(100, parseMoney(v)) : parseMoney(v);
+  if(value > 0) project.discount = { mode, value }; else delete project.discount;
+  saveProjects();
+  renderPriceEstimate();
+}
+export function toggleEstimateDiscountMode(): void {
+  const project = getCurrentProject();
+  if(!project) return;
+  const d = project.discount || { mode: 'sum' as const, value: 0 };
+  // режим запоминается и с нулевой скидкой — чтобы следующее число было в выбранных единицах
+  project.discount = { mode: d.mode === 'pct' ? 'sum' : 'pct', value: d.mode === 'sum' ? Math.min(100, d.value) : d.value };
+  saveProjects();
+  renderPriceEstimate();
+}
+export function setEstimateAdvance(v: string): void {
+  const project = getCurrentProject();
+  if(!project) return;
+  const value = parseMoney(v);
+  if(value > 0) project.advance = value; else delete project.advance;
+  saveProjects();
+  renderPriceEstimate();
+}
+
 // --- «Ценовое урегулирование» ---
 export function openPriceSetting(): void {
   renderPriceSetting(S.prices);
@@ -122,6 +203,7 @@ export function openPriceSetting(): void {
 }
 export function closePriceSetting(): void { $('priceSettingScreen').classList.remove('open'); }
 
+const priceHint = (text: string) => `<div class="price-hint-small">${text}</div>`;
 function priceField(path: string, label: string, value: number | string, text?: boolean, keepZero?: boolean): string {
   const shown = (!text && !keepZero && (value === 0 || value === '0')) ? '' : value;
   return `
@@ -150,6 +232,32 @@ function renderPriceSetting(s: PriceSettings): void {
         ${priceField('glass',      'Стекло',              s.glass)}
         ${priceField('panel.pvc',  'НПВХ Панель',         s.panel.pvc)}
         ${priceField('panel.alu',  'Алюминиевая панель',  s.panel.alu)}
+      </div>
+
+      <div class="price-group">
+        <div class="price-title">Стекло по видам ( m² )</div>
+        ${priceHint('Своя цена для тонированного и другого стекла. Пусто — берётся цена «Стекло» выше.')}
+        ${GLASS_TYPES.map(g => priceField('glassByType.' + g.code, glassShortName(g.code), (s.glassByType && s.glassByType[g.code]) || 0)).join('')}
+      </div>
+
+      <div class="price-group">
+        <div class="price-title">Штапик и уплотнитель ( m )</div>
+        ${priceHint('Штапик — по длине штапика в окне. Уплотнитель — с двух сторон каждого стекла и по периметру створок.')}
+        ${priceField('bead', 'Штапик', s.bead)}
+        ${priceField('seal', 'Уплотнитель', s.seal)}
+      </div>
+
+      <div class="price-group">
+        <div class="price-title">Доплата за цвет профиля ( % )</div>
+        ${priceHint('Процент к цене профиля окна, в смете — отдельной строкой. Цветной — RAL, металлик, анодирование; ламинация — дуб, орех, венге и другие плёнки. Белый и «без цвета» — без доплаты.')}
+        ${priceField('colorPct.colored',   'Цветной',   s.colorPct.colored)}
+        ${priceField('colorPct.laminated', 'Ламинация', s.colorPct.laminated)}
+      </div>
+
+      <div class="price-group">
+        <div class="price-title">Работы и доставка</div>
+        ${priceHint('Включаются в «Расчёте стоимости» проекта галочками. Монтаж и демонтаж — за м² окон, откосы — за метр (2 × высота + ширина окна), доставка — за заказ.')}
+        ${WORKS.map(([k, label, , short]) => priceField('works.' + k, label + ' ( ' + short + ' )', s.works[k])).join('')}
       </div>
 
       <div class="price-group">
@@ -192,6 +300,9 @@ export function savePriceSetting(): void {
   const wm = document.querySelector<HTMLInputElement>('#priceSettingBody input[name="wasteMode"]:checked');
   if(wm && isWasteMode(wm.value)) s.waste.mode = wm.value;
   s.waste.percent = Math.min(100, Math.max(0, s.waste.percent));
+  s.colorPct.colored = Math.min(100, Math.max(0, s.colorPct.colored));
+  s.colorPct.laminated = Math.min(100, Math.max(0, s.colorPct.laminated));
+  Object.keys(s.glassByType).forEach(k => { if(!(s.glassByType[k] > 0)) delete s.glassByType[k]; });
   S.prices = s;
   persistPriceSettings();
   closePriceSetting();

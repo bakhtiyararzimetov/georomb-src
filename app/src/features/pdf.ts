@@ -263,11 +263,13 @@ function pdfDrawEstimate(pg: PdfPage, project: Project, res: ProjectCost, no: nu
   });
   ctx.fillStyle = PDF_LINE; ctx.fillRect(X0, y - 20, X1 - X0, 2);
   y += 40;
-  const tot: [string, string, boolean][] = [
-    [pdfT('subtotal'), fmtMoney(res.subtotal), false],
+  const tot: [string, string, boolean][] = [[pdfT('subtotal'), fmtMoney(res.subtotal), false]];
+  if(res.discount > 0) tot.push([pdfT('discount'), '− ' + fmtMoney(res.discount), false]);
+  tot.push(
     [pdfT('tax') + ' (' + fmtNum(res.taxRate, 0) + ' %)', fmtMoney(res.tax), false],
     [pdfT('grand') + ' (' + S.prices.currency + ')', fmtMoney(res.grand), true]
-  ];
+  );
+  if(res.advance > 0) tot.push([pdfT('advance'), fmtMoney(res.advance), false], [pdfT('due'), fmtMoney(res.due), true]);
   tot.forEach(([a, b, bold]) => {
     pdfText(ctx, a, X0 + 380, y, bold ? 36 : 30, { bold, color:bold ? PDF_INK : PDF_GREY });
     pdfText(ctx, b, X1, y, bold ? 36 : 30, { bold, align:'right' });

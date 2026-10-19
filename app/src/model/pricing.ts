@@ -4,6 +4,7 @@ import { notifyDataChanged } from '../storage.ts';
 import type { Mat, PriceSettings, Project, Rect, SubLayout, TreeNode, WasteMode, WinElement } from '../types.ts';
 import { findColor, projectMat } from '../data/colors.ts';
 import { NET_OVERLAP, REINF_MULLION_OFFSET, profileFor, sashInset, sashOverhang, sashProfile } from '../data/profiles.ts';
+import { findGlass } from '../data/glass.ts';
 import { computeLayout, insetRect, layoutNode, parseMm } from './layout.ts';
 import { cutOptimize } from './cutOptimizer.ts';
 
@@ -27,7 +28,12 @@ export const PRICE_DEFAULTS: PriceSettings = {
   waste: { mode:'none', percent:3 },           // отходы профиля в цене
   tax: 0,                                      // %
   currency: 'KZT',
-  decimals: 0
+  decimals: 0,
+  glassByType: {},                             // за м² по виду стекла; нет цены — как glass
+  bead: 0,                                     // штапик, за метр
+  seal: 0,                                     // уплотнитель, за метр
+  colorPct: { colored:0, laminated:0 },        // доплата к профилю, %
+  works: { install:0, dismantle:0, slopes:0, delivery:0 }
 };
 
 export type ProfileKey = keyof PriceSettings['profile']['pvc'];
@@ -87,6 +93,11 @@ export function loadPriceSettings(): PriceSettings {
       if(s.tax      != null) base.tax      = s.tax;
       if(s.currency)         base.currency = s.currency;
       if(s.decimals != null) base.decimals = s.decimals;
+      if(s.glassByType && typeof s.glassByType === 'object') Object.assign(base.glassByType, s.glassByType);
+      if(s.bead != null) base.bead = Number(s.bead) || 0;
+      if(s.seal != null) base.seal = Number(s.seal) || 0;
+      if(s.colorPct && typeof s.colorPct === 'object') Object.assign(base.colorPct, s.colorPct);
+      if(s.works && typeof s.works === 'object') Object.assign(base.works, s.works);
     }
   }catch{ /* localStorage недоступен — работаем на дефолтах */ }
   return base;
@@ -131,6 +142,8 @@ export interface Geometry {
   glasses: Pane[];             // стёкла (без панелей) — для стекольщика и раскроя листов
   nets: Pane[];                // москитные сетки
   netArea: number;             // м²
+  beadLen: number;             // штапик, м
+  sealLen: number;             // уплотнитель, м: 2 × периметр стёкол + периметр створок
   reinfLen: number;            // м, армирование (только ПВХ)
 }
 // отступ армирования рамы и створок с каждой стороны; настройки раскроя могут быть ещё не загружены
@@ -152,7 +165,7 @@ function sillGeometry(e: WinElement): Geometry {
   return { W: len, H: depth, area: 0, frameLen: 0, mullionLen: 0, sashWinLen: 0, sashDoorLen: 0,
            glassArea: 0, panelArea: 0, sashCount: 0, acc: {}, sillLen: len / 1000, sillWidth: nearestSillWidth(depth),
            profileLen: 0, len: {}, pieces: { frame:[], mullion:[], wSash:[], dSash:[], slidFrame:[], slidSash:[], bead:[], panel:[], reinf:[], net:[] },
-           glasses: [], nets: [], netArea: 0, reinfLen: 0 };
+           glasses: [], nets: [], netArea: 0, reinfLen: 0, beadLen: 0, sealLen: 0 };
 }
 
 export function elementGeometry(e: WinElement, mat: Mat): Geometry {
@@ -171,7 +184,7 @@ export function elementGeometry(e: WinElement, mat: Mat): Geometry {
               sillLen: e.sill ? (parseFloat(String(e.sillLen)) || 0) : 0,
               sillWidth: e.sill ? (parseFloat(String(e.sillWidth)) || 20) : 0,
               profileLen:0, len:{}, pieces:{ frame:[], mullion:[], wSash:[], dSash:[], slidFrame:[], slidSash:[], bead:[], panel:[], reinf:[], net:[] },
-              glasses:[], nets:[], netArea:0, reinfLen:0 };
+              glasses:[], nets:[], netArea:0, reinfLen:0, beadLen:0, sealLen:0 };
 
   // длины отдельных деталей в мм по ролям — для раскроя (в смету не входят)
   const pieces = g.pieces;
@@ -262,7 +275,21 @@ export function elementGeometry(e: WinElement, mat: Mat): Geometry {
   g.len = sliding
     ? { slidFrame:g.frameLen, slidSash:g.sashWinLen + g.sashDoorLen }
     : { frame:g.frameLen, mullion:g.mullionLen, wSash:g.sashWinLen, dSash:g.sashDoorLen };
+  // штапик — длины деталей штапика; уплотнитель — с двух сторон каждого стекла и по периметру створок
+  const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
+  g.beadLen = sum(g.pieces.bead) / 1000;
+  g.sealLen = (2 * g.glasses.reduce((a, p) => a + 2 * (p.w + p.h), 0) + sum(g.pieces.wSash) + sum(g.pieces.dSash) + sum(g.pieces.slidSash)) / 1000;
   return g;
+}
+
+/** Короткое имя стекла для сметы: «Бронзовый (Planibel Bronze)» → «Бронзовый». */
+export const glassShortName = (code: string): string => findGlass(code).name.replace(/\s*\(.*$/, '');
+export type ColorClass = 'white' | 'colored' | 'laminated';
+/** Белый или без цвета — без доплаты; плёнка под дерево — ламинация; остальное — цветной профиль. */
+export function colorClass(e: WinElement, project: Project | null | undefined): ColorClass {
+  const c = findColor(project, e.color || '');
+  if(!c || /^ral9016a?$/.test(c.code)) return 'white';
+  return c.laminate ? 'laminated' : 'colored';
 }
 
 /** Сколько штук раскраивать / заказывать: 0 — ничего, дробное (0,4) — хотя бы 1, не число — по умолчанию. */
@@ -276,6 +303,8 @@ export interface ElementCost {
   g: Geometry; qty: number; mat: Mat;
   profileCost: number; glassCost: number; panelCost: number; sillCost: number; accCost: number;
   reinfCost: number; netCost: number;
+  beadCost: number; sealCost: number; colorCost: number;   // штапик, уплотнитель, доплата за цвет профиля
+  glassCode: string; glassRate: number; color: ColorClass;
   unit: number; total: number; roundedTotal?: number;
 }
 export function calcElement(e: WinElement, project: Project | null | undefined): ElementCost {
@@ -288,7 +317,9 @@ export function calcElement(e: WinElement, project: Project | null | undefined):
   const sashRate  = sliding ? p.slidSash  : p.wSash;
   const doorRate  = sliding ? p.slidSash  : p.dSash;
   const profileCost = g.frameLen * frameRate + g.mullionLen * p.mullion + g.sashWinLen * sashRate + g.sashDoorLen * doorRate;
-  const glassCost = g.glassArea * ps.glass;
+  const glassCode = findGlass(e.glass).code;
+  const glassRate = (ps.glassByType && ps.glassByType[glassCode]) || ps.glass;   // цена вида стекла или общая
+  const glassCost = g.glassArea * glassRate;
   const panelCost = g.panelArea * ps.panel[mat];
   const sillRate  = (ps.sill && ps.sill[g.sillWidth]) || 0;
   const sillCost  = (g.sillLen || 0) * sillRate;
@@ -296,15 +327,23 @@ export function calcElement(e: WinElement, project: Project | null | undefined):
   (Object.keys(g.acc) as AccKey[]).forEach(k => { accCost += (g.acc[k] || 0) * (ps.accessory[k] || 0); });
   const reinfCost = g.reinfLen * (ps.reinf || 0);
   const netCost   = g.netArea * (ps.net || 0);
-  const unit = profileCost + glassCost + panelCost + sillCost + accCost + reinfCost + netCost;
+  const beadCost  = g.beadLen * (ps.bead || 0);
+  const sealCost  = g.sealLen * (ps.seal || 0);
+  const color = colorClass(e, project);
+  const pct = color === 'colored' ? ps.colorPct.colored : color === 'laminated' ? ps.colorPct.laminated : 0;
+  const colorCost = profileCost * (Number(pct) || 0) / 100;
+  const unit = profileCost + glassCost + panelCost + sillCost + accCost + reinfCost + netCost + beadCost + sealCost + colorCost;
   const q = parseMm(e.qty), qty = (Number.isFinite(q) && q >= 0) ? q : DEFAULT_QTY;   // 0 шт — это 0, а не 1
-  return { g, qty, mat, profileCost, glassCost, panelCost, sillCost, accCost, reinfCost, netCost, unit, total: unit * qty };
+  return { g, qty, mat, profileCost, glassCost, panelCost, sillCost, accCost, reinfCost, netCost, beadCost, sealCost, colorCost,
+           glassCode, glassRate, color, unit, total: unit * qty };
 }
 
 export interface EstimateLine { name: string; qty: number; unit: string; price: number; sum: number; }
 export interface ProfileWaste { mode: WasteMode; m: number; cost: number; bars: number; }
 export interface ProjectCost {
   items: ElementCost[]; lines: EstimateLine[]; subtotal: number; taxRate: number; tax: number; grand: number;
+  discount: number;            // скидка в валюте (из процента или суммы проекта)
+  advance: number; due: number;   // аванс и остаток к оплате
   waste: ProfileWaste | null;
   totals: { qty: number; area: number; glassArea: number; profileLen: number; sillLen: number; netArea: number; reinfLen: number };
 }
@@ -366,8 +405,9 @@ export function calcProject(project: Project): ProjectCost {
   const pct = Math.max(0, Number(ps.waste && ps.waste.percent) || 0);
   const cutWaste = (wmode === 'full' || wmode === 'smart') && items.length ? profileCutWaste(project, items, wmode) : null;
   // cut — отходы по раскрою (только для всего проекта; у элемента по отдельности их не посчитать)
-  const buildLines = (list: ElementCost[], cut: ProfileWaste | null): EstimateLine[] => {
-    const sumBy = (fn: (g: Geometry) => number) => list.reduce((a, c) => a + fn(c.g) * c.qty, 0);
+  const buildLines = (list: ElementCost[], cut: ProfileWaste | null, withWorks: boolean): EstimateLine[] => {
+    const sumBy = (fn: (g: Geometry) => number, only?: (c: ElementCost) => boolean) =>
+      list.reduce((a, c) => a + (only && !only(c) ? 0 : fn(c.g) * c.qty), 0);
     const raw: RawLine[] = [];
     EST_PROFILE_ORDER.forEach(([k, label]) => raw.push({ name:label, unit:'м',  price:p[k] || 0,
       qty: sumBy(g => (g.len && g.len[k]) || 0) }));
@@ -384,12 +424,41 @@ export function calcProject(project: Project): ProjectCost {
     }
     ACC_PARTS.forEach(([k, label]) => raw.push({ name:label, unit:'шт', price:ps.accessory[k] || 0,
       qty: sumBy(g => g.acc[k] || 0) }));
-    raw.push({ name:'Стекло', unit:'м²', price:ps.glass || 0,      qty: sumBy(g => g.glassArea) });
+    // стекло: если заданы цены по видам — строкой на каждый вид, иначе одной строкой, как раньше
+    if(ps.glassByType && Object.values(ps.glassByType).some(v => Number(v) > 0)){
+      [...new Set(list.map(c => c.glassCode))].forEach(code => raw.push({ name:'Стекло: ' + glassShortName(code), unit:'м²',
+        price: (ps.glassByType[code] || ps.glass || 0), qty: sumBy(g => g.glassArea, c => c.glassCode === code) }));
+    }else raw.push({ name:'Стекло', unit:'м²', price:ps.glass || 0, qty: sumBy(g => g.glassArea) });
     raw.push({ name:'Панель', unit:'м²', price:ps.panel[mat] || 0, qty: sumBy(g => g.panelArea) });
     raw.push({ name:'Москитная сетка', unit:'м²', price:ps.net || 0, qty: sumBy(g => g.netArea) });
     SILL_WIDTHS.forEach(w => raw.push({ name:'Подоконник, ' + w + ' см', unit:'м',
       price:(ps.sill && ps.sill[w]) || 0,
       qty: sumBy(g => (g.sillWidth === w ? (g.sillLen || 0) : 0)) }));
+    // новые статьи — только с ценой: у кого их нет, смета прежняя
+    if(ps.bead > 0) raw.push({ name:'Штапик', unit:'м', price:ps.bead, qty: sumBy(g => g.beadLen) });
+    if(ps.seal > 0) raw.push({ name:'Уплотнитель', unit:'м', price:ps.seal, qty: sumBy(g => g.sealLen) });
+    ([['colored', 'цветной профиль'], ['laminated', 'ламинация']] as const).forEach(([cls, label]) => {
+      const pc = Number(ps.colorPct[cls]) || 0;
+      if(pc <= 0) return;
+      const of = list.filter(c => c.color === cls);
+      if(!of.length) return;
+      // от округлённых строк профиля этих элементов — сумма сходится с тем, что видно в смете
+      const only = (c: ElementCost) => c.color === cls;
+      const base = EST_PROFILE_ORDER.reduce((acc, [k]) => {
+        const q = sumBy(g => (g.len && g.len[k]) || 0, only);
+        return q > 1e-9 ? acc + roundHalfEven(roundHalfEven(p[k] || 0, d) * roundHalfEven(q, 1), d) : acc;
+      }, 0);
+      raw.push({ name:'Доплата: ' + label + ', ' + fmtNum(pc, 0, 2) + '%', unit:'м', price:0,
+        qty: of.reduce((a, c) => a + c.g.profileLen * c.qty, 0), fixedSum: base * pc / 100 });
+    });
+    if(withWorks && project.works){
+      const wk = project.works, wp = ps.works;
+      const windows = (c: ElementCost) => c.g.area > 0;                    // отдельный подоконник — не окно
+      if(wk.install && wp.install > 0)   raw.push({ name:'Монтаж',   unit:'м²', price:wp.install,   qty: sumBy(g => g.area) });
+      if(wk.dismantle && wp.dismantle > 0) raw.push({ name:'Демонтаж', unit:'м²', price:wp.dismantle, qty: sumBy(g => g.area) });
+      if(wk.slopes && wp.slopes > 0)     raw.push({ name:'Откосы',   unit:'м',  price:wp.slopes,    qty: sumBy(g => (2 * g.H + g.W) / 1000, windows) });
+      if(wk.delivery && wp.delivery > 0) raw.push({ name:'Доставка', unit:'шт', price:wp.delivery,  qty: 1 });
+    }
     return raw.filter(l => l.qty > 1e-9).map(l => {
       const qty = roundHalfEven(l.qty, l.unit === 'шт' ? 0 : 1);
       if(l.fixedSum != null){
@@ -400,13 +469,18 @@ export function calcProject(project: Project): ProjectCost {
       return { name:l.name, qty, unit:l.unit, price:unitPrice, sum: roundHalfEven(unitPrice * qty, d) };
     });
   };
-  const lines = buildLines(items, cutWaste);
-  items.forEach(c => { c.roundedTotal = buildLines([c], null).reduce((a, l) => a + l.sum, 0); });
+  const lines = buildLines(items, cutWaste, true);
+  items.forEach(c => { c.roundedTotal = buildLines([c], null, false).reduce((a, l) => a + l.sum, 0); });   // работы — только в проекте
   const subtotal = lines.reduce((a, l) => a + l.sum, 0);
-  const tax      = roundHalfEven(subtotal * taxRate / 100, d);
-  const grand    = roundHalfEven(subtotal + tax, d);
+  // скидка → налог со суммы после скидки → итого → аванс → остаток; ни одна сумма не уходит в минус
+  const dsc = project.discount, dv = Math.max(0, Number(dsc && dsc.value) || 0);
+  const discount = Math.min(subtotal, roundHalfEven(dsc && dsc.mode === 'pct' ? subtotal * Math.min(100, dv) / 100 : dv, d));
+  const tax      = roundHalfEven((subtotal - discount) * taxRate / 100, d);
+  const grand    = roundHalfEven(subtotal - discount + tax, d);
+  const advance  = roundHalfEven(Math.max(0, Number(project.advance) || 0), d);
+  const due      = Math.max(0, roundHalfEven(grand - advance, d));
   return {
-    items, lines, subtotal, taxRate, tax, grand, waste: cutWaste,
+    items, lines, subtotal, taxRate, tax, grand, discount, advance, due, waste: cutWaste,
     totals: {
       qty:        items.reduce((a, c) => a + c.qty, 0),
       area:       items.reduce((a, c) => a + c.g.area       * c.qty, 0),
