@@ -4,7 +4,7 @@
 // Путь к www: переменная CAP_WWW, по умолчанию ~/myapp/www (capacitor.config.json → "webDir": "www").
 import { cpSync, existsSync, readdirSync, renameSync, rmSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -16,11 +16,16 @@ if(!existsSync(join(dist, 'index.html'))){
   process.exit(1);
 }
 if(existsSync(www)){
-  const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 23);   // с миллисекундами: два запуска подряд не совпадут
   const backup = www + '.bak-' + stamp;
   renameSync(www, backup);
   console.log('Старая папка сохранена: ' + backup);
 }
+// старых копий храним 2 последние — иначе они копятся с каждой сборкой
+const KEEP_BACKUPS = 2;
+const bakPrefix = basename(www) + '.bak-';
+readdirSync(dirname(www)).filter(n => n.startsWith(bakPrefix)).sort().slice(0, -KEEP_BACKUPS)
+  .forEach(n => rmSync(join(dirname(www), n), { recursive: true, force: true }));
 cpSync(dist, www, { recursive: true });
 rmSync(join(www, '.vite'), { recursive: true, force: true });
 // свой нативный код (плагин FolderAccess и MainActivity) — в Android-проект рядом с www
